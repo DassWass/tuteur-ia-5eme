@@ -5,7 +5,9 @@ from PIL import Image
 # ==========================================
 # 1. CONFIGURATION INITIALE
 # ==========================================
+# Connexion sécurisée à l'API via le coffre-fort de Streamlit
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# Utilisation de la version la plus récente et stable du modèle
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 st.set_page_config(page_title="Tuteur 5ème", layout="wide")
@@ -16,7 +18,7 @@ st.title("📚 Ton Tuteur Personnel")
 # ==========================================
 with st.sidebar:
     st.header("⚙️ Paramètres de la séance")
-    matiere = st.selectbox("Choisis ta matière :", ["Mathématiques", "Français", "Histoire-Géo", "SVT"])
+    matiere = st.selectbox("Choisis ta matière :", ["Mathématiques", "Français", "Histoire-Géo", "SVT", "Physique-Chimie", "Anglais"])
     chapitre = st.text_input("Sur quel chapitre travailles-tu ?")
     
     st.markdown("---")
@@ -26,7 +28,7 @@ with st.sidebar:
     st.markdown("---")
     
     if st.button("Lancer la séance"):
-        # Réinitialisation de la discussion
+        # Réinitialisation de la discussion à chaque nouvelle séance
         st.session_state.messages = []
         
         # Le cerveau de l'IA (Prompt Système)
@@ -45,12 +47,12 @@ Aucune discussion sur la vie personnelle, la religion, la sexualité ou la polit
         st.session_state.messages.append({"role": "assistant", "content": f"Salut ! Prêt à travailler sur le chapitre '{chapitre}' en {matiere} ? Si tu as une photo de ton cours, ajoute-la dans le menu à gauche, puis dis-moi ce que tu veux faire ! 😉"})
 
 # ==========================================
-# 3. LA FENÊTRE PRINCIPALE (Le Chat)
+# 3. LA FENÊTRE PRINCIPALE (Affichage du Chat)
 # ==========================================
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Configure ta séance dans le menu à gauche pour commencer !"}]
 
-# Affichage de l'historique
+# Affichage de l'historique visuel
 for msg in st.session_state.messages:
     if msg["role"] != "system":
         # On masque la balise [EXPORT] pour que l'élève ne la voie pas à l'écran
@@ -59,60 +61,34 @@ for msg in st.session_state.messages:
             st.markdown(contenu_affichage)
 
 # ==========================================
-# 4. GESTION DES NOUVEAUX MESSAGES
+# 4. GESTION DES NOUVEAUX MESSAGES & MÉMOIRE
 # ==========================================
 if prompt := st.chat_input("Écris ton message ici..."):
     with st.chat_message("user"):
         st.markdown(prompt)
         
-        # Affichage de la photo si elle existe
+        # Gestion de l'affichage de la photo pour l'élève
         image_a_envoyer = None
         if fichier_photo is not None:
             image_a_envoyer = Image.open(fichier_photo)
             st.image(image_a_envoyer, caption="Document joint", width=300)
 
-    # Sauvegarde du message utilisateur
+    # Sauvegarde du message utilisateur dans la mémoire
     st.session_state.messages.append({"role": "user", "content": prompt})
     
-    # Préparation du paquet pour Gemini (Texte + Photo)
-    contenu_pour_gemini = [prompt]
-    if image_a_envoyer is not None:
-        contenu_pour_gemini.append(image_a_envoyer)
+    # --- PRÉPARATION DU PAQUET POUR GEMINI (Contexte + Historique + Message) ---
+    contenu_pour_gemini = []
     
-    # Appel à l'IA
-    response = model.generate_content(contenu_pour_gemini) 
-    
-    # Affichage de la réponse IA (sans la balise [EXPORT])
-    texte_reponse = response.text
-    contenu_affichage = texte_reponse.replace("[EXPORT]", "").strip()
-    
-    with st.chat_message("assistant"):
-        st.markdown(contenu_affichage)
+    # 1. On injecte les règles strictes
+    if len(st.session_state.messages) > 0 and st.session_state.messages[0]["role"] == "system":
+        contenu_pour_gemini.append("INSTRUCTIONS STRICTES : \n" + st.session_state.messages[0]["content"])
         
-    # Sauvegarde de la réponse IA dans l'historique (AVEC la balise pour l'export)
-    st.session_state.messages.append({"role": "assistant", "content": texte_reponse})
-
-# ==========================================
-# 5. L'EXPORT DES DOCUMENTS (Menu de gauche)
-# ==========================================
-st.sidebar.subheader("📥 Tes Documents")
-
-texte_export = f"--- Fiches et Exercices : {matiere} ({chapitre}) ---\n\n"
-documents_trouves = False
-
-for msg in st.session_state.messages:
-    if msg["role"] == "assistant" and "[EXPORT]" in msg["content"]:
-        documents_trouves = True
-        contenu_nettoye = msg["content"].replace("[EXPORT]", "").strip()
-        texte_export += f"{contenu_nettoye}\n\n"
-        texte_export += "--------------------------------------------------\n\n"
-
-if documents_trouves:
-    st.sidebar.download_button(
-        label="📄 Télécharger les fiches/exercices",
-        data=texte_export,
-        file_name=f"documents_{matiere}.txt",
-        mime="text/plain"
-    )
-else:
-    st.sidebar.info("💡 Demande à l'IA de générer un exercice ou une fiche de synthèse pour voir le bouton de téléchargement apparaître ici.")
+    # 2. On injecte l'historique de la conversation
+    historique = "\nHISTORIQUE DE LA SÉANCE :\n"
+    for msg in st.session_state.messages[1:-1]: # Tout sauf le system prompt et le message actuel
+        role = "ÉLÈVE" if msg["role"] == "user" else "TUTEUR"
+        historique += f"{role} : {msg['content']}\n"
+    contenu_pour_gemini.append(historique)
+    
+    # 3. On ajoute la question actuelle de l'élève
+    contenu_pour_gemini.append("\nNOUVEAU MESSAGE DE L'ÉLÈVE :\n"
