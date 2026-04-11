@@ -7,18 +7,19 @@ import datetime
 # ==========================================
 # 1. CONFIGURATION & MODÈLE
 # ==========================================
-# Vérification de la clé API
-if "GEMINI_API_KEY" not in st.secrets:
-    st.error("Clé API introuvable dans les Secrets Streamlit !")
+# On sécurise l'accès à la clé API
+if "GEMINI_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+else:
+    st.error("Configure la clé GEMINI_API_KEY dans les Secrets Streamlit.")
     st.stop()
 
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-# On utilise la version validée ensemble
-model = genai.GenerativeModel('gemini-2.5-flash')
+# On utilise la version LATEST pour avoir du quota et de la stabilité
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
-st.set_page_config(page_title="Tuteur IA 5ème - V2.2", layout="wide")
+st.set_page_config(page_title="Tuteur IA 5ème", layout="wide")
 
-# Style CSS pour le bouton ROUGE
+# Style CSS pour le bouton ROUGE "Lancer"
 st.markdown("""
     <style>
     div.stButton > button:first-child {
@@ -37,6 +38,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Initialisation des variables de session
 if "seance_lancee" not in st.session_state:
     st.session_state.seance_lancee = False
 if "messages" not in st.session_state:
@@ -54,44 +56,43 @@ with st.container():
     
     col1, col2 = st.columns(2)
     with col1:
-        liste_matieres = ["Mathématiques", "Français", "Histoire-Géo", "SVT", "Physique-Chimie", "Anglais", "Espagnol", "Autre"]
-        matiere_choisie = st.selectbox("1. Choisis ta matière :", liste_matieres)
+        matieres = ["Mathématiques", "Français", "Histoire-Géo", "SVT", "Physique-Chimie", "Anglais", "Espagnol", "Autre"]
+        matiere_choisie = st.selectbox("1. Choisis ta matière :", matieres)
         matiere_finale = matiere_choisie
         if matiere_choisie == "Autre":
             matiere_finale = st.text_input("Précise la matière :")
             
     with col2:
-        sujet = st.text_input("2. Sur quel sujet veux-tu t'entraîner ?", placeholder="Ex: Les fractions...")
+        sujet = st.text_input("2. Sur quel sujet travailles-tu ?", placeholder="Ex: Les fractions...")
 
     st.markdown("---")
 
 if lancer:
     if not sujet or (matiere_choisie == "Autre" and not matiere_finale):
-        st.warning("⚠️ Renseigne la matière et le sujet !")
+        st.warning("⚠️ Précise le sujet et la matière avant de commencer.")
     else:
         st.session_state.seance_lancee = True
         st.session_state.messages = []
         
-        # PROMPT SYSTÈME "PAS À PAS" (SCROLLING LOGIC)
-        contexte_systeme = f"""Tu es un tuteur de 5ème. Matière : {matiere_finale}. Sujet : {sujet}.
-CONSIGNES STRICTES :
-1. Commence par 1 ou 2 blagues/devinettes.
-2. NE DONNE JAMAIS un exercice complet. Donne une ligne d'énoncé, puis pose une question sur la PREMIÈRE étape.
-3. Attends la réponse. Guide l'élève pas à pas.
-4. Utilise le tutoiement.
-5. Marque la synthèse finale avec [EXPORT] uniquement quand tout est fini."""
-        
+        # PROMPT SYSTÈME : LA LOI DU PAS-À-PAS
+        contexte_systeme = f"""Tu es un tuteur de 5ème (13 ans). Matière : {matiere_finale}. Sujet : {sujet}.
+MISSION :
+1. Démarre TOUJOURS par 1 ou 2 blagues/devinettes.
+2. NE DONNE JAMAIS l'exercice complet. Propose une micro-étape, puis attends la réponse de l'élève.
+3. Travaille ligne par ligne. Sois encourageant.
+4. Synthèse finale taguée [EXPORT] uniquement à la fin de l'exercice corrigé.
+"""
         st.session_state.messages.append({"role": "system", "content": contexte_systeme})
         
         try:
-            # On envoie une instruction claire pour le démarrage
-            response = model.generate_content(f"Agis en tant que tuteur de 5ème. Sujet: {sujet}. Commence par tes blagues puis introduis la première micro-étape.")
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            prompt_init = f"Commence la séance de {matiere_finale} sur {sujet} par tes blagues puis la première étape."
+            res = model.generate_content(prompt_init)
+            st.session_state.messages.append({"role": "assistant", "content": res.text})
         except Exception as e:
-            st.error(f"Erreur au démarrage : {e}")
+            st.error("Souci de connexion au démarrage.")
 
 # ==========================================
-# 3. INTERFACE DE DISCUSSION
+# 3. CHAT INTERACTIF
 # ==========================================
 if st.session_state.seance_lancee:
     for msg in st.session_state.messages:
@@ -99,55 +100,48 @@ if st.session_state.seance_lancee:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"].replace("[EXPORT]", "").strip())
 
-    if prompt := st.chat_input("Réponds ici..."):
+    if prompt := st.chat_input("Ta réponse..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
             try:
-                # On construit un prompt qui contient tout l'historique pour maintenir la logique pas à pas
-                full_prompt = ""
+                # Historique simple pour l'IA
+                historique = ""
                 for m in st.session_state.messages:
-                    role_label = "INSTRUCTION:" if m["role"] == "system" else "ELEVE:" if m["role"] == "user" else "TUTEUR:"
-                    full_prompt += f"{role_label} {m['content']}\n"
+                    historique += f"{m['role']}: {m['content']}\n"
                 
-                response = model.generate_content(full_prompt)
+                response = model.generate_content(historique)
                 st.markdown(response.text.replace("[EXPORT]", "").strip())
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except Exception as e:
-                # DEBUG MODE : On affiche la vraie erreur
-                st.error("Désolé, j'ai un souci technique.")
-                st.expander("Détails techniques pour l'admin").write(e)
+            except:
+                st.error("Petit hoquet de l'IA, réessaie ton message.")
 
 # ==========================================
-# 4. BARRE LATÉRALE : PHOTOS & PDF
+# 4. SIDEBAR : PDF & PHOTOS
 # ==========================================
 with st.sidebar:
-    st.header("🖼️ Documents")
-    photo = st.file_uploader("Photo du cours :", type=["png", "jpg", "jpeg"])
-    st.markdown("---")
-    st.subheader("📥 Exportation PDF")
+    st.header("🖼️ Aide & Export")
+    photo = st.file_uploader("Une photo de ton cours ?", type=["png", "jpg", "jpeg"])
     
+    st.markdown("---")
     if st.session_state.seance_lancee:
-        if st.button("Générer le PDF"):
+        if st.button("📝 Préparer mon PDF"):
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
             pdf.cell(190, 10, f"Fiche : {matiere_finale}", ln=True, align='C')
             pdf.ln(10)
 
-            export_content = ""
-            for msg in st.session_state.messages:
-                if msg["role"] == "assistant" and "[EXPORT]" in msg["content"]:
-                    texte = msg["content"].replace("[EXPORT]", "").strip()
+            export_txt = ""
+            for m in st.session_state.messages:
+                if m["role"] == "assistant" and "[EXPORT]" in m["content"]:
+                    txt = m["content"].replace("[EXPORT]", "").strip()
                     pdf.set_font("Arial", "", 11)
-                    pdf.multi_cell(190, 8, texte)
+                    pdf.multi_cell(190, 8, txt)
                     pdf.ln(5)
-                    export_content += texte
+                    export_txt += txt
 
-            if export_content:
-                pdf_bytes = bytes(pdf.output())
-                st.download_button(label="📄 Télécharger PDF", data=pdf_bytes, file_name="fiche_revision.pdf", mime="application/pdf")
-            else:
-                st.warning("Aucun contenu finalisé [EXPORT] pour le moment.")
+            if export_txt:
+                pdf_
