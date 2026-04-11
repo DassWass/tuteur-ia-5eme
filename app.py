@@ -1,134 +1,157 @@
 import streamlit as st
 import google.generativeai as genai
 from PIL import Image
+from fpdf import FPDF
+import datetime
 
 # ==========================================
-# 1. CONFIGURATION INITIALE
+# 1. CONFIGURATION & MODÈLE
 # ==========================================
-# Connexion sécurisée
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-# Modèle optimisé
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-st.set_page_config(page_title="Tuteur 5ème", layout="wide")
-st.title("📚 Ton Tuteur Personnel")
+st.set_page_config(page_title="Tuteur IA 5ème - V2", layout="wide")
+
+# Style CSS pour le bouton ROUGE en haut à gauche
+st.markdown("""
+    <style>
+    div.stButton > button:first-child {
+        background-color: #ff4b4b;
+        color: white;
+        border-radius: 10px;
+        border: none;
+        font-weight: bold;
+        padding: 0.5rem 1rem;
+    }
+    div.stButton > button:hover {
+        background-color: #ff0000;
+        color: white;
+    }
+    </style>
+""", unsafe_content_type=True)
 
 # ==========================================
-# 2. LA BARRE LATÉRALE (Paramètres)
+# 2. CONFIGURATION DE LA SÉANCE (BLOQUANTE)
 # ==========================================
-with st.sidebar:
-    st.header("⚙️ Paramètres de la séance")
-    matiere = st.selectbox("Choisis ta matière :", ["Mathématiques", "Français", "Histoire-Géo", "SVT", "Physique-Chimie", "Anglais"])
-    chapitre = st.text_input("Sur quel chapitre travailles-tu ?")
+if "seance_lancee" not in st.session_state:
+    st.session_state.seance_lancee = False
+
+# Zone de configuration en haut
+with st.container():
+    col_btn, col_vide = st.columns([1, 4])
+    with col_btn:
+        lancer = st.button("🚀 LANCER LES EXERCICES")
+
+    st.title("📚 Ton Tuteur Personnel de 5ème")
     
+    col1, col2 = st.columns(2)
+    with col1:
+        liste_matieres = ["Mathématiques", "Français", "Histoire-Géo", "SVT", "Physique-Chimie", "Anglais", "Espagnol", "Autre"]
+        matiere_choisie = st.selectbox("1. Choisis ta matière :", liste_matieres)
+        
+        # Champ supplémentaire si "Autre"
+        matiere_finale = matiere_choisie
+        if matiere_choisie == "Autre":
+            matiere_finale = st.text_input("Précise la matière :")
+            
+    with col2:
+        sujet = st.text_input("2. Sur quel sujet veux-tu t'entraîner ?", placeholder="Ex: Les fractions, le passé composé...")
+
     st.markdown("---")
-    st.subheader("📸 Ajouter un document")
-    st.info("Glisse la photo de ton cours ou de ton exercice ici.")
-    fichier_photo = st.file_uploader("", type=["png", "jpg", "jpeg"])
-    st.markdown("---")
-    
-    if st.button("Lancer la séance"):
+
+# Logique de lancement
+if lancer:
+    if not sujet or (matiere_choisie == "Autre" and not matiere_finale):
+        st.warning("⚠️ Remplis la matière et le sujet avant de lancer !")
+    else:
+        st.session_state.seance_lancee = True
         st.session_state.messages = []
         
-        # Le cerveau de l'IA
-        contexte = f"""Tu es un tuteur scolaire virtuel spécialement conçu pour accompagner un élève de 5ème du système éducatif français. La matière étudiée aujourd'hui est : {matiere}, et le chapitre est : {chapitre}.
+        # PROMPT SYSTÈME OPTIMISÉ V2
+        contexte = f"""Tu es un tuteur scolaire pour un élève de 5ème (13 ans). 
+Matière : {matiere_finale}. Sujet : {sujet}.
 
-RÈGLES DE COMPORTEMENT (STRICTES) :
-1. Pédagogie Socratique : Ne donne JAMAIS la réponse exacte immédiatement. Pose des questions progressives.
-2. Ton : Utilise le tutoiement ("tu"). Sois encourageant et positif.
-3. Source : Basé UNIQUEMENT sur le programme officiel du Ministère de l'Éducation Nationale français (5ème).
-4. MARQUAGE DES DOCUMENTS : Lorsque tu proposes un exercice complet, un problème ou que tu rédiges une fiche de synthèse, tu dois OBLIGATOIREMENT commencer ton message par la balise exacte : [EXPORT]. Ne mets cette balise que pour les contenus utiles à réviser, pas pour la conversation classique.
-
-INTERDITS (ABSOLUS) :
-Aucune discussion sur la vie personnelle, la religion, la sexualité ou la politique. Réponds : "Je suis un assistant dédié à tes révisions scolaires." si ces sujets sont abordés.
+MISSIONS :
+1. COMMENCE TOUJOURS par 1 ou 2 blagues, charades ou devinettes ludiques pour briser la glace.
+2. Pose des questions progressives (Pédagogie Socratique).
+3. Utilise le tutoiement, sois très encourageant.
+4. Pour chaque exercice complet ou fiche, commence par [EXPORT].
+5. INTERDIT : Vie perso, religion, sexe, politique. Réponds par la phrase de sécurité convenue.
 """
         st.session_state.messages.append({"role": "system", "content": contexte})
-        st.session_state.messages.append({"role": "assistant", "content": f"Salut ! Prêt à travailler sur le chapitre '{chapitre}' en {matiere} ? Si tu as une photo de ton cours, ajoute-la dans le menu à gauche, puis dis-moi ce que tu veux faire ! 😉"})
-
-# ==========================================
-# 3. LA FENÊTRE PRINCIPALE (Le Chat)
-# ==========================================
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Configure ta séance dans le menu à gauche pour commencer !"}]
-
-# Affichage de l'historique
-for msg in st.session_state.messages:
-    if msg["role"] != "system":
-        contenu_affichage = msg["content"].replace("[EXPORT]", "").strip()
-        with st.chat_message(msg["role"]):
-            st.markdown(contenu_affichage)
-
-# ==========================================
-# 4. GESTION DES MESSAGES & IA
-# ==========================================
-if prompt := st.chat_input("Écris ton message ici..."):
-    # Affichage du message élève
-    with st.chat_message("user"):
-        st.markdown(prompt)
-        image_a_envoyer = None
-        if fichier_photo is not None:
-            image_a_envoyer = Image.open(fichier_photo)
-            st.image(image_a_envoyer, caption="Document joint", width=300)
-
-    # Sauvegarde
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Préparation de la mémoire pour l'IA
-    contenu_pour_gemini = []
-    
-    if len(st.session_state.messages) > 0 and st.session_state.messages[0]["role"] == "system":
-        contenu_pour_gemini.append("INSTRUCTIONS STRICTES : \n" + st.session_state.messages[0]["content"])
         
-    historique = "\nHISTORIQUE DE LA SÉANCE :\n"
-    for msg in st.session_state.messages[1:-1]:
-        role = "ÉLÈVE" if msg["role"] == "user" else "TUTEUR"
-        historique += f"{role} : {msg['content']}\n"
-    contenu_pour_gemini.append(historique)
-    
-    # La ligne corrigée est ici :
-    contenu_pour_gemini.append("\nNOUVEAU MESSAGE DE L'ÉLÈVE :\n" + prompt)
-    
-    if image_a_envoyer is not None:
-        contenu_pour_gemini.append(image_a_envoyer)
-    
-    # Appel à l'IA avec sécurité (Bloc Try/Except)
-    with st.chat_message("assistant"):
+        # Premier message automatique avec blague
         try:
-            response = model.generate_content(contenu_pour_gemini) 
-            texte_reponse = response.text
-            contenu_affichage = texte_reponse.replace("[EXPORT]", "").strip()
-            st.markdown(contenu_affichage)
-            
-            # On ne sauvegarde que si ça a marché
-            st.session_state.messages.append({"role": "assistant", "content": texte_reponse})
-            
-        except Exception as e:
-            # Message de secours si le serveur plante
-            st.error("Oups, j'ai eu un petit trou de mémoire ou le réseau a coupé. Peux-tu reformuler ou réessayer ?")
-            # On retire le message de l'élève de l'historique pour qu'il puisse réessayer proprement
-            st.session_state.messages.pop()
+            premier_contact = model.generate_content(f"Fais 1 ou 2 blagues/devinettes pour un enfant de 13 ans, puis salue-le pour sa séance de {matiere_finale} sur {sujet}.")
+            st.session_state.messages.append({"role": "assistant", "content": premier_contact.text})
+        except:
+            st.session_state.messages.append({"role": "assistant", "content": "Salut ! Prêt à bosser ? (Désolé, ma réserve de blagues est coincée, on commence ?)"})
 
 # ==========================================
-# 5. L'EXPORT DES DOCUMENTS
+# 3. INTERFACE DE CHAT (SI LANCÉE)
 # ==========================================
-st.sidebar.subheader("📥 Tes Documents")
+if st.session_state.seance_lancee:
+    # Affichage des messages
+    for msg in st.session_state.messages:
+        if msg["role"] != "system":
+            with st.chat_message(msg["role"]):
+                st.markdown(msg["content"].replace("[EXPORT]", "").strip())
 
-texte_export = f"--- Fiches et Exercices : {matiere} ({chapitre}) ---\n\n"
-documents_trouves = False
+    # Zone de saisie
+    if prompt := st.chat_input("Réponds ici..."):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-for msg in st.session_state.messages:
-    if msg["role"] == "assistant" and "[EXPORT]" in msg["content"]:
-        documents_trouves = True
-        contenu_nettoye = msg["content"].replace("[EXPORT]", "").strip()
-        texte_export += f"{contenu_nettoye}\n\n"
-        texte_export += "--------------------------------------------------\n\n"
+        # Appel IA avec mémoire
+        with st.chat_message("assistant"):
+            try:
+                # Reconstruction du contexte pour Gemini
+                memoire = [msg["content"] for msg in st.session_state.messages]
+                response = model.generate_content(memoire)
+                texte_reponse = response.text
+                st.markdown(texte_reponse.replace("[EXPORT]", "").strip())
+                st.session_state.messages.append({"role": "assistant", "content": texte_reponse})
+            except:
+                st.error("Petit bug de connexion... Réessaie ?")
 
-if documents_trouves:
-    st.sidebar.download_button(
-        label="📄 Télécharger les fiches/exercices",
-        data=texte_export,
-        file_name=f"documents_{matiere}.txt",
-        mime="text/plain"
-    )
-else:
-    st.sidebar.info("💡 Demande à l'IA de générer un exercice complet ou une fiche de synthèse pour voir le bouton de téléchargement apparaître ici.")
+# ==========================================
+# 4. EXPORT PDF (BARRE LATÉRALE)
+# ==========================================
+with st.sidebar:
+    st.header("📸 Documents")
+    fichier_photo = st.file_uploader("Ajoute une photo de ton cours :", type=["png", "jpg", "jpeg"])
+    
+    st.markdown("---")
+    st.subheader("📥 Export")
+    
+    if st.session_state.seance_lancee:
+        # Construction du contenu PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(190, 10, f"Fiche de Révision : {matiere_finale}", ln=True, align='C')
+        pdf.set_font("Arial", "", 12)
+        pdf.cell(190, 10, f"Sujet : {sujet} - Date : {datetime.date.today()}", ln=True, align='C')
+        pdf.ln(10)
+
+        export_content = ""
+        for msg in st.session_state.messages:
+            if msg["role"] == "assistant" and "[EXPORT]" in msg["content"]:
+                text = msg["content"].replace("[EXPORT]", "").strip()
+                pdf.multi_cell(190, 10, text)
+                pdf.ln(5)
+                export_content += text
+
+        if export_content:
+            pdf_output = pdf.output(dest='S')
+            st.download_button(
+                label="📄 Télécharger ma fiche (PDF)",
+                data=pdf_output,
+                file_name=f"revision_{matiere_finale}.pdf",
+                mime="application/pdf"
+            )
+        else:
+            st.info("L'IA n'a pas encore généré de fiche [EXPORT].")
+    else:
+        st.info("Lance une séance pour activer l'export.")
