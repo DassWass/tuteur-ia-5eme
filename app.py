@@ -7,11 +7,18 @@ import datetime
 # ==========================================
 # 1. CONFIGURATION & MODÈLE
 # ==========================================
+# Vérification de la clé API
+if "GEMINI_API_KEY" not in st.secrets:
+    st.error("Clé API introuvable dans les Secrets Streamlit !")
+    st.stop()
+
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+# On utilise la version validée ensemble
 model = genai.GenerativeModel('gemini-2.5-flash')
 
-st.set_page_config(page_title="Tuteur IA 5ème - V2.1", layout="wide")
+st.set_page_config(page_title="Tuteur IA 5ème - V2.2", layout="wide")
 
+# Style CSS pour le bouton ROUGE
 st.markdown("""
     <style>
     div.stButton > button:first-child {
@@ -51,7 +58,7 @@ with st.container():
         matiere_choisie = st.selectbox("1. Choisis ta matière :", liste_matieres)
         matiere_finale = matiere_choisie
         if matiere_choisie == "Autre":
-            matiere_finale = st.text_input("Précise la matière :", placeholder="Ex: Musique...")
+            matiere_finale = st.text_input("Précise la matière :")
             
     with col2:
         sujet = st.text_input("2. Sur quel sujet veux-tu t'entraîner ?", placeholder="Ex: Les fractions...")
@@ -64,24 +71,24 @@ if lancer:
     else:
         st.session_state.seance_lancee = True
         st.session_state.messages = []
-        # PROMPT SYSTÈME "STEP-BY-STEP"
-        contexte_systeme = f"""Tu es un tuteur scolaire de 5ème expert en pédagogie active. 
-Matière : {matiere_finale}. Sujet : {sujet}.
-
-RÈGLES D'INTERACTION STRICTES :
-1. LE BRISE-GLACE : Commence TOUJOURS par 1 ou 2 blagues/devinettes.
-2. PAS À PAS : Ne propose JAMAIS un exercice complet d'un coup. Donne l'énoncé, puis pose une question sur la PREMIÈRE étape uniquement.
-3. LIGNE PAR LIGNE : Attends la réponse de l'élève. Si c'est juste, félicite-le et donne la micro-étape suivante. Si c'est faux, donne un indice sans donner la réponse.
-4. UN SEUL DÉFI : Tu ne dois jamais écrire plus de 3 phrases à la fois.
-5. EXPORT : N'utilise la balise [EXPORT] QUE lorsque l'exercice est ENTIÈREMENT terminé et corrigé, pour en faire une fiche de synthèse propre. Ne la mets pas pendant la discussion par étapes.
-"""
+        
+        # PROMPT SYSTÈME "PAS À PAS" (SCROLLING LOGIC)
+        contexte_systeme = f"""Tu es un tuteur de 5ème. Matière : {matiere_finale}. Sujet : {sujet}.
+CONSIGNES STRICTES :
+1. Commence par 1 ou 2 blagues/devinettes.
+2. NE DONNE JAMAIS un exercice complet. Donne une ligne d'énoncé, puis pose une question sur la PREMIÈRE étape.
+3. Attends la réponse. Guide l'élève pas à pas.
+4. Utilise le tutoiement.
+5. Marque la synthèse finale avec [EXPORT] uniquement quand tout est fini."""
+        
+        st.session_state.messages.append({"role": "system", "content": contexte_systeme})
         
         try:
-            prompt_initial = f"Fais 1 ou 2 blagues courtes, puis salue l'élève pour sa leçon de {matiere_finale} sur {sujet}."
-            reponse_initiale = model.generate_content(prompt_initial)
-            st.session_state.messages.append({"role": "assistant", "content": reponse_initiale.text})
-        except:
-            st.session_state.messages.append({"role": "assistant", "content": "Salut ! Prêt à bosser ?"})
+            # On envoie une instruction claire pour le démarrage
+            response = model.generate_content(f"Agis en tant que tuteur de 5ème. Sujet: {sujet}. Commence par tes blagues puis introduis la première micro-étape.")
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            st.error(f"Erreur au démarrage : {e}")
 
 # ==========================================
 # 3. INTERFACE DE DISCUSSION
@@ -99,12 +106,19 @@ if st.session_state.seance_lancee:
 
         with st.chat_message("assistant"):
             try:
-                historique_ia = [msg["content"] for msg in st.session_state.messages]
-                response = model.generate_content(historique_ia)
+                # On construit un prompt qui contient tout l'historique pour maintenir la logique pas à pas
+                full_prompt = ""
+                for m in st.session_state.messages:
+                    role_label = "INSTRUCTION:" if m["role"] == "system" else "ELEVE:" if m["role"] == "user" else "TUTEUR:"
+                    full_prompt += f"{role_label} {m['content']}\n"
+                
+                response = model.generate_content(full_prompt)
                 st.markdown(response.text.replace("[EXPORT]", "").strip())
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except:
-                st.error("Problème de connexion. Réessaie ?")
+            except Exception as e:
+                # DEBUG MODE : On affiche la vraie erreur
+                st.error("Désolé, j'ai un souci technique.")
+                st.expander("Détails techniques pour l'admin").write(e)
 
 # ==========================================
 # 4. BARRE LATÉRALE : PHOTOS & PDF
@@ -116,23 +130,24 @@ with st.sidebar:
     st.subheader("📥 Exportation PDF")
     
     if st.session_state.seance_lancee:
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(190, 10, f"Fiche : {matiere_finale}", ln=True, align='C')
-        pdf.ln(10)
+        if st.button("Générer le PDF"):
+            pdf = FPDF()
+            pdf.add_page()
+            pdf.set_font("Arial", "B", 16)
+            pdf.cell(190, 10, f"Fiche : {matiere_finale}", ln=True, align='C')
+            pdf.ln(10)
 
-        export_content = ""
-        for msg in st.session_state.messages:
-            if msg["role"] == "assistant" and "[EXPORT]" in msg["content"]:
-                texte_nettoye = msg["content"].replace("[EXPORT]", "").strip()
-                pdf.set_font("Arial", "", 11)
-                pdf.multi_cell(190, 8, texte_nettoye)
-                pdf.ln(5)
-                export_content += texte_nettoye
+            export_content = ""
+            for msg in st.session_state.messages:
+                if msg["role"] == "assistant" and "[EXPORT]" in msg["content"]:
+                    texte = msg["content"].replace("[EXPORT]", "").strip()
+                    pdf.set_font("Arial", "", 11)
+                    pdf.multi_cell(190, 8, texte)
+                    pdf.ln(5)
+                    export_content += texte
 
-        if export_content:
-            pdf_bytes = bytes(pdf.output())
-            st.download_button(label="📄 Télécharger PDF", data=pdf_bytes, file_name=f"fiche.pdf", mime="application/pdf")
-        else:
-            st.info("Aucun contenu [EXPORT] trouvé.")
+            if export_content:
+                pdf_bytes = bytes(pdf.output())
+                st.download_button(label="📄 Télécharger PDF", data=pdf_bytes, file_name="fiche_revision.pdf", mime="application/pdf")
+            else:
+                st.warning("Aucun contenu finalisé [EXPORT] pour le moment.")
