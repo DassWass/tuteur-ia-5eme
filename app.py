@@ -5,19 +5,18 @@ from fpdf import FPDF
 import datetime
 
 # ==========================================
-# 1. CONFIGURATION & MODÈLE
+# 1. CONFIGURATION & MODÈLE (GEMINI 2.5)
 # ==========================================
-# On sécurise l'accès à la clé API
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
-    st.error("Configure la clé GEMINI_API_KEY dans les Secrets Streamlit.")
+    st.error("Clé API manquante dans les Secrets Streamlit.")
     st.stop()
 
-# On utilise la version LATEST pour avoir du quota et de la stabilité
-model = genai.GenerativeModel('gemini-2.5-flash-latest')
+# Utilisation du modèle 2.5 Flash avec ta nouvelle clé
+model = genai.GenerativeModel('gemini-2.5-flash')
 
-st.set_page_config(page_title="Tuteur IA 5ème", layout="wide")
+st.set_page_config(page_title="Tuteur IA 5ème - V3.0", layout="wide")
 
 # Style CSS pour le bouton ROUGE "Lancer"
 st.markdown("""
@@ -38,7 +37,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Initialisation des variables de session
 if "seance_lancee" not in st.session_state:
     st.session_state.seance_lancee = False
 if "messages" not in st.session_state:
@@ -57,13 +55,13 @@ with st.container():
     col1, col2 = st.columns(2)
     with col1:
         matieres = ["Mathématiques", "Français", "Histoire-Géo", "SVT", "Physique-Chimie", "Anglais", "Espagnol", "Autre"]
-        matiere_choisie = st.selectbox("1. Choisis ta matière :", matieres)
+        matiere_choisie = st.selectbox("Choisis ta matière :", matieres)
         matiere_finale = matiere_choisie
         if matiere_choisie == "Autre":
             matiere_finale = st.text_input("Précise la matière :")
             
     with col2:
-        sujet = st.text_input("2. Sur quel sujet travailles-tu ?", placeholder="Ex: Les fractions...")
+        sujet = st.text_input("Sur quel sujet travailles-tu ?", placeholder="Ex: Les fractions...")
 
     st.markdown("---")
 
@@ -74,22 +72,24 @@ if lancer:
         st.session_state.seance_lancee = True
         st.session_state.messages = []
         
-        # PROMPT SYSTÈME : LA LOI DU PAS-À-PAS
-        contexte_systeme = f"""Tu es un tuteur de 5ème (13 ans). Matière : {matiere_finale}. Sujet : {sujet}.
-MISSION :
+        # PROMPT SYSTÈME : LOGIQUE PAS-À-PAS ET BLAGUES
+        contexte_systeme = f"""Tu es un tuteur de 5ème. Matière : {matiere_finale}. Sujet : {sujet}.
+CONSIGNES :
 1. Démarre TOUJOURS par 1 ou 2 blagues/devinettes.
-2. NE DONNE JAMAIS l'exercice complet. Propose une micro-étape, puis attends la réponse de l'élève.
-3. Travaille ligne par ligne. Sois encourageant.
-4. Synthèse finale taguée [EXPORT] uniquement à la fin de l'exercice corrigé.
+2. NE DONNE JAMAIS l'exercice complet d'un coup.
+3. Propose une seule micro-étape ou question à la fois (travail ligne par ligne).
+4. Utilise le tutoiement.
+5. Marque la synthèse finale avec [EXPORT] quand l'exercice est terminé.
 """
         st.session_state.messages.append({"role": "system", "content": contexte_systeme})
         
         try:
-            prompt_init = f"Commence la séance de {matiere_finale} sur {sujet} par tes blagues puis la première étape."
-            res = model.generate_content(prompt_init)
+            instruction = f"Commence par tes blagues puis introduis la première étape de {matiere_finale} sur {sujet}."
+            res = model.generate_content(instruction)
             st.session_state.messages.append({"role": "assistant", "content": res.text})
         except Exception as e:
-            st.error("Souci de connexion au démarrage.")
+            # Affichage de l'erreur réelle pour comprendre le blocage
+            st.error(f"Erreur technique : {e}")
 
 # ==========================================
 # 3. CHAT INTERACTIF
@@ -107,7 +107,7 @@ if st.session_state.seance_lancee:
 
         with st.chat_message("assistant"):
             try:
-                # Historique simple pour l'IA
+                # On envoie l'historique complet pour garder le fil "pas-à-pas"
                 historique = ""
                 for m in st.session_state.messages:
                     historique += f"{m['role']}: {m['content']}\n"
@@ -115,23 +115,23 @@ if st.session_state.seance_lancee:
                 response = model.generate_content(historique)
                 st.markdown(response.text.replace("[EXPORT]", "").strip())
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
-            except:
-                st.error("Petit hoquet de l'IA, réessaie ton message.")
+            except Exception as e:
+                st.error(f"Erreur technique : {e}")
 
 # ==========================================
 # 4. SIDEBAR : PDF & PHOTOS
 # ==========================================
 with st.sidebar:
-    st.header("🖼️ Aide & Export")
-    photo = st.file_uploader("Une photo de ton cours ?", type=["png", "jpg", "jpeg"])
-    
+    st.header("🖼️ Documents")
+    photo = st.file_uploader("Photo du cours :", type=["png", "jpg", "jpeg"])
     st.markdown("---")
+    
     if st.session_state.seance_lancee:
-        if st.button("📝 Préparer mon PDF"):
+        if st.button("📝 Générer mon PDF"):
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
-            pdf.cell(190, 10, f"Fiche : {matiere_finale}", ln=True, align='C')
+            pdf.cell(190, 10, f"Révisions : {matiere_finale}", ln=True, align='C')
             pdf.ln(10)
 
             export_txt = ""
@@ -144,4 +144,7 @@ with st.sidebar:
                     export_txt += txt
 
             if export_txt:
-                pdf_
+                pdf_bytes = bytes(pdf.output())
+                st.download_button("📥 Télécharger le PDF", pdf_bytes, "fiche.pdf", "application/pdf")
+            else:
+                st.info("Finis un exercice pour voir le bouton de téléchargement.")
