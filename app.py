@@ -28,7 +28,7 @@ st.markdown("""
         color: white;
     }
     </style>
-""", unsafe_content_type=True)
+""", unsafe_allow_html=True)
 
 # ==========================================
 # 2. CONFIGURATION DE LA SÉANCE (BLOQUANTE)
