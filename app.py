@@ -5,16 +5,16 @@ from PIL import Image
 # ==========================================
 # 1. CONFIGURATION INITIALE
 # ==========================================
-# Connexion sécurisée à l'API via le coffre-fort de Streamlit
+# Connexion sécurisée
 genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-# Utilisation de la version la plus récente et stable du modèle
+# Modèle optimisé
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 st.set_page_config(page_title="Tuteur 5ème", layout="wide")
 st.title("📚 Ton Tuteur Personnel")
 
 # ==========================================
-# 2. LA BARRE LATÉRALE (Paramètres & Photo)
+# 2. LA BARRE LATÉRALE (Paramètres)
 # ==========================================
 with st.sidebar:
     st.header("⚙️ Paramètres de la séance")
@@ -28,10 +28,9 @@ with st.sidebar:
     st.markdown("---")
     
     if st.button("Lancer la séance"):
-        # Réinitialisation de la discussion à chaque nouvelle séance
         st.session_state.messages = []
         
-        # Le cerveau de l'IA (Prompt Système)
+        # Le cerveau de l'IA
         contexte = f"""Tu es un tuteur scolaire virtuel spécialement conçu pour accompagner un élève de 5ème du système éducatif français. La matière étudiée aujourd'hui est : {matiere}, et le chapitre est : {chapitre}.
 
 RÈGLES DE COMPORTEMENT (STRICTES) :
@@ -47,48 +46,89 @@ Aucune discussion sur la vie personnelle, la religion, la sexualité ou la polit
         st.session_state.messages.append({"role": "assistant", "content": f"Salut ! Prêt à travailler sur le chapitre '{chapitre}' en {matiere} ? Si tu as une photo de ton cours, ajoute-la dans le menu à gauche, puis dis-moi ce que tu veux faire ! 😉"})
 
 # ==========================================
-# 3. LA FENÊTRE PRINCIPALE (Affichage du Chat)
+# 3. LA FENÊTRE PRINCIPALE (Le Chat)
 # ==========================================
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Configure ta séance dans le menu à gauche pour commencer !"}]
 
-# Affichage de l'historique visuel
+# Affichage de l'historique
 for msg in st.session_state.messages:
     if msg["role"] != "system":
-        # On masque la balise [EXPORT] pour que l'élève ne la voie pas à l'écran
         contenu_affichage = msg["content"].replace("[EXPORT]", "").strip()
         with st.chat_message(msg["role"]):
             st.markdown(contenu_affichage)
 
 # ==========================================
-# 4. GESTION DES NOUVEAUX MESSAGES & MÉMOIRE
+# 4. GESTION DES MESSAGES & IA
 # ==========================================
 if prompt := st.chat_input("Écris ton message ici..."):
+    # Affichage du message élève
     with st.chat_message("user"):
         st.markdown(prompt)
-        
-        # Gestion de l'affichage de la photo pour l'élève
         image_a_envoyer = None
         if fichier_photo is not None:
             image_a_envoyer = Image.open(fichier_photo)
             st.image(image_a_envoyer, caption="Document joint", width=300)
 
-    # Sauvegarde du message utilisateur dans la mémoire
+    # Sauvegarde
     st.session_state.messages.append({"role": "user", "content": prompt})
     
-    # --- PRÉPARATION DU PAQUET POUR GEMINI (Contexte + Historique + Message) ---
+    # Préparation de la mémoire pour l'IA
     contenu_pour_gemini = []
     
-    # 1. On injecte les règles strictes
     if len(st.session_state.messages) > 0 and st.session_state.messages[0]["role"] == "system":
         contenu_pour_gemini.append("INSTRUCTIONS STRICTES : \n" + st.session_state.messages[0]["content"])
         
-    # 2. On injecte l'historique de la conversation
     historique = "\nHISTORIQUE DE LA SÉANCE :\n"
-    for msg in st.session_state.messages[1:-1]: # Tout sauf le system prompt et le message actuel
+    for msg in st.session_state.messages[1:-1]:
         role = "ÉLÈVE" if msg["role"] == "user" else "TUTEUR"
         historique += f"{role} : {msg['content']}\n"
     contenu_pour_gemini.append(historique)
     
-    # 3. On ajoute la question actuelle de l'élève
+    # La ligne corrigée est ici :
     contenu_pour_gemini.append("\nNOUVEAU MESSAGE DE L'ÉLÈVE :\n" + prompt)
+    
+    if image_a_envoyer is not None:
+        contenu_pour_gemini.append(image_a_envoyer)
+    
+    # Appel à l'IA avec sécurité (Bloc Try/Except)
+    with st.chat_message("assistant"):
+        try:
+            response = model.generate_content(contenu_pour_gemini) 
+            texte_reponse = response.text
+            contenu_affichage = texte_reponse.replace("[EXPORT]", "").strip()
+            st.markdown(contenu_affichage)
+            
+            # On ne sauvegarde que si ça a marché
+            st.session_state.messages.append({"role": "assistant", "content": texte_reponse})
+            
+        except Exception as e:
+            # Message de secours si le serveur plante
+            st.error("Oups, j'ai eu un petit trou de mémoire ou le réseau a coupé. Peux-tu reformuler ou réessayer ?")
+            # On retire le message de l'élève de l'historique pour qu'il puisse réessayer proprement
+            st.session_state.messages.pop()
+
+# ==========================================
+# 5. L'EXPORT DES DOCUMENTS
+# ==========================================
+st.sidebar.subheader("📥 Tes Documents")
+
+texte_export = f"--- Fiches et Exercices : {matiere} ({chapitre}) ---\n\n"
+documents_trouves = False
+
+for msg in st.session_state.messages:
+    if msg["role"] == "assistant" and "[EXPORT]" in msg["content"]:
+        documents_trouves = True
+        contenu_nettoye = msg["content"].replace("[EXPORT]", "").strip()
+        texte_export += f"{contenu_nettoye}\n\n"
+        texte_export += "--------------------------------------------------\n\n"
+
+if documents_trouves:
+    st.sidebar.download_button(
+        label="📄 Télécharger les fiches/exercices",
+        data=texte_export,
+        file_name=f"documents_{matiere}.txt",
+        mime="text/plain"
+    )
+else:
+    st.sidebar.info("💡 Demande à l'IA de générer un exercice complet ou une fiche de synthèse pour voir le bouton de téléchargement apparaître ici.")
