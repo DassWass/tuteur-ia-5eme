@@ -64,9 +64,17 @@ if lancer:
     else:
         st.session_state.seance_lancee = True
         st.session_state.messages = []
-        contexte_systeme = f"""Tu es un tuteur scolaire de 5ème. Matière : {matiere_finale}. Sujet : {sujet}.
-RÈGLES : COMMENCE TOUJOURS par 1 ou 2 blagues/devinettes. Ne donne jamais la solution directe. Utilise le tutoiement. Pour chaque fiche, commence par [EXPORT]."""
-        st.session_state.messages.append({"role": "system", "content": contexte_systeme})
+        # PROMPT SYSTÈME "STEP-BY-STEP"
+        contexte_systeme = f"""Tu es un tuteur scolaire de 5ème expert en pédagogie active. 
+Matière : {matiere_finale}. Sujet : {sujet}.
+
+RÈGLES D'INTERACTION STRICTES :
+1. LE BRISE-GLACE : Commence TOUJOURS par 1 ou 2 blagues/devinettes.
+2. PAS À PAS : Ne propose JAMAIS un exercice complet d'un coup. Donne l'énoncé, puis pose une question sur la PREMIÈRE étape uniquement.
+3. LIGNE PAR LIGNE : Attends la réponse de l'élève. Si c'est juste, félicite-le et donne la micro-étape suivante. Si c'est faux, donne un indice sans donner la réponse.
+4. UN SEUL DÉFI : Tu ne dois jamais écrire plus de 3 phrases à la fois.
+5. EXPORT : N'utilise la balise [EXPORT] QUE lorsque l'exercice est ENTIÈREMENT terminé et corrigé, pour en faire une fiche de synthèse propre. Ne la mets pas pendant la discussion par étapes.
+"""
         
         try:
             prompt_initial = f"Fais 1 ou 2 blagues courtes, puis salue l'élève pour sa leçon de {matiere_finale} sur {sujet}."
