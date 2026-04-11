@@ -14,7 +14,7 @@ else:
     st.stop()
 
 # Utilisation du modèle 2.5 Flash avec ta nouvelle clé
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash-latest')
 
 st.set_page_config(page_title="Tuteur IA 5ème - V3.0", layout="wide")
 
