@@ -91,4 +91,4 @@ if prompt := st.chat_input("Écris ton message ici..."):
     contenu_pour_gemini.append(historique)
     
     # 3. On ajoute la question actuelle de l'élève
-    contenu_pour_gemini.append("\nNOUVEAU MESSAGE DE L'ÉLÈVE :\n"
+    contenu_pour_gemini.append("\nNOUVEAU MESSAGE DE L'ÉLÈVE :\n" + prompt)
