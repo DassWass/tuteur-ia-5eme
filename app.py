@@ -15,7 +15,7 @@ else:
     st.stop()
 
 # On utilise la version LATEST pour avoir du quota et de la stabilité
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+model = genai.GenerativeModel('gemini-2.5-flash-latest')
 
 st.set_page_config(page_title="Tuteur IA 5ème", layout="wide")
 
