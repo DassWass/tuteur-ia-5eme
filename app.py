@@ -144,7 +144,16 @@ with st.sidebar:
                 export_content += text
 
         if export_content:
-            pdf_output = pdf.output(dest='S')
+            if export_content:
+            # On génère le PDF et on force la conversion en format 'bytes'
+            pdf_output = bytes(pdf.output()) 
+            
+            st.download_button(
+                label="📄 Télécharger ma fiche (PDF)",
+                data=pdf_output,
+                file_name=f"revision_{matiere_finale}.pdf",
+                mime="application/pdf"
+            )
             st.download_button(
                 label="📄 Télécharger ma fiche (PDF)",
                 data=pdf_output,
