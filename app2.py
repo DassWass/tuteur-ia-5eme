@@ -38,18 +38,15 @@ MATIERES = {
     "Autre":          "📝",
 }
 
-# Matières avec système de vies (mode exercice)
-MATIERES_VIES = {"Mathématiques", "Physique-Chimie", "Histoire-Géo", "SVT"}
-# Matières avec flashcards (mode exercice)
+MATIERES_VIES      = {"Mathématiques", "Physique-Chimie", "Histoire-Géo", "SVT"}
 MATIERES_FLASHCARD = {"Français", "Anglais", "Espagnol", "Autre"}
 
-MODEL_NAME = "gemini-2.5-flash-lite"
-GENERATION_CONFIG = genai.GenerationConfig(
-    temperature=0.7,
-)
+MODEL_NAME        = "gemini-2.5-flash-lite"
+GENERATION_CONFIG = genai.GenerationConfig(temperature=0.7)
 
-# ── System prompts ──
-
+# ==========================================
+# SYSTEM PROMPTS
+# ==========================================
 SYSTEM_BASE = """Tu es un tuteur super sympa, bienveillant et patient pour des élèves de 5ème (collège, 12-13 ans).
 Utilise TOUJOURS le tutoiement, des emojis et un ton jeune et motivant.
 Tes réponses JSON doivent être UNIQUEMENT du JSON valide, sans balises markdown, sans texte avant ou après.
@@ -58,7 +55,7 @@ Tes réponses JSON doivent être UNIQUEMENT du JSON valide, sans balises markdow
 SYSTEM_QCM = SYSTEM_BASE + """
 Tu génères des QCM pour aider l'élève à comprendre et assimiler son cours.
 
-Pour CHAQUE question, réponds UNIQUEMENT avec ce JSON (pas de markdown, pas de texte autour) :
+Pour CHAQUE question, réponds UNIQUEMENT avec ce JSON :
 {
   "question": "La question claire et précise",
   "choices": {
@@ -68,60 +65,56 @@ Pour CHAQUE question, réponds UNIQUEMENT avec ce JSON (pas de markdown, pas de 
     "D": "Quatrième proposition"
   },
   "correct": "A",
-  "explanation": "Explication courte et encourageante de la bonne réponse (2-3 phrases max, avec emoji)"
+  "explanation": "Explication courte et encourageante (2-3 phrases, avec emoji)"
 }
 
 RÈGLES :
-- Questions adaptées au niveau 5ème, sur le cours (pas des calculs complexes)
+- Questions sur la compréhension du cours (pas des calculs)
 - Une seule bonne réponse parmi les 4
-- Les mauvaises réponses doivent être plausibles (pas trop faciles à éliminer)
-- Varier les types : définitions, exemples, "lequel est faux", etc.
-- Enchaîne 5 à 8 questions par séance pour couvrir le sujet
+- Les mauvaises réponses doivent être plausibles
+- Enchaîne 5 à 8 questions pour couvrir le sujet
 """
 
 SYSTEM_VIES = SYSTEM_BASE + """
-Tu génères des problèmes et exercices d'application à réponse libre pour que l'élève s'entraîne.
+Tu génères des problèmes et exercices d'application à réponse libre.
 
 Pour CHAQUE exercice, réponds UNIQUEMENT avec ce JSON :
 {
-  "problem": "L'énoncé complet du problème ou exercice, clair et adapté au niveau 5ème",
-  "solution": "La réponse exacte attendue (courte : un nombre, une date, un mot, une formule...)",
-  "explanation": "Explication détaillée de la solution avec les étapes de raisonnement (3-4 phrases, avec emoji)",
-  "hint": "Un indice utile qui guide sans donner la réponse (ex: 'Pense à la formule P = ...')"
+  "problem": "L'énoncé complet du problème, clair et adapté au niveau 5ème",
+  "solution": "La réponse exacte attendue (courte : un nombre, une date, un mot...)",
+  "explanation": "Explication détaillée avec les étapes de raisonnement (3-4 phrases, avec emoji)",
+  "hint": "Un indice utile qui guide sans donner la réponse"
 }
 
-RÈGLES :
-- Exercices progressifs : commence simple, augmente la difficulté
-- L'énoncé doit être précis et sans ambiguïté
-- La solution doit être courte et vérifiable (un résultat, pas une phrase entière)
-- L'indice doit vraiment aider sans spoiler la réponse
-- L'explication montre le raisonnement complet étape par étape
-
-Pour évaluer une réponse de l'élève, tu recevras un message au format :
+Pour évaluer une réponse, tu recevras :
 EVAL|<solution_attendue>|<réponse_élève>
 Réponds UNIQUEMENT avec ce JSON :
 {
   "correct": true ou false,
   "feedback": "Message encourageant avec explication (2-3 phrases, avec emoji)"
 }
+
+RÈGLES :
+- Exercices progressifs, commence simple
+- Solution courte et vérifiable
+- L'indice aide sans spoiler
 """
 
 SYSTEM_FLASHCARD = SYSTEM_BASE + """
-Tu génères des flashcards pour mémoriser du vocabulaire, des règles ou des conjugaisons.
+Tu génères des flashcards pour mémoriser vocabulaire, règles ou conjugaisons.
 
 Pour CHAQUE flashcard, réponds UNIQUEMENT avec ce JSON :
 {
   "front": "Ce qui est affiché sur le recto (mot, expression, question)",
   "back": "La réponse complète au verso",
-  "hint": "Un petit indice optionnel pour aider (peut être vide: '')",
+  "hint": "Un petit indice (peut être vide: '')",
   "example": "Un exemple d'usage en contexte (phrase courte)"
 }
 
 RÈGLES :
-- Recto : mot, expression, verbe à conjuguer, règle à compléter
-- Verso : traduction, définition, conjugaison complète, règle entière
-- Exemple toujours en contexte réel
-- Génère les flashcards une par une — attends la validation de l'élève avant la suivante
+- Recto : mot, expression, verbe, règle à compléter
+- Verso : traduction, définition, conjugaison, règle entière
+- Génère les flashcards une par une
 """
 
 QUICK_REPLIES_CHAT = [
@@ -132,155 +125,321 @@ QUICK_REPLIES_CHAT = [
 ]
 
 # ==========================================
-# CSS
+# CSS — FOND BLANC, POLICES SOMBRES
 # ==========================================
 st.markdown("""
 <style>
-html, body, [class*="css"] {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+/* ── Fond blanc global ── */
+html, body, [class*="stApp"], [data-testid="stAppViewContainer"],
+[data-testid="stMain"], .main, .block-container {
+    background-color: #ffffff !important;
+    color: #1a1a2e !important;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
 }
 
-/* ── Hero ── */
+/* ── Sidebar blanche aussi ── */
+[data-testid="stSidebar"] {
+    background-color: #f8f9ff !important;
+}
+
+/* ── Tous les textes en sombre par défaut ── */
+p, span, label, div, h1, h2, h3, h4, h5, h6, li, td, th {
+    color: #1a1a2e !important;
+}
+
+/* ── Hero header ── */
 .hero-header {
     background: linear-gradient(135deg, #FF6B6B 0%, #FFE66D 55%, #4ECDC4 100%);
     border-radius: 20px;
     padding: 1.6rem 2rem;
     margin-bottom: 1.8rem;
     text-align: center;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 18px rgba(0,0,0,0.10);
 }
-.hero-header h1 { color: white; font-size: 2rem; margin: 0; text-shadow: 1px 2px 4px rgba(0,0,0,0.2); }
-.hero-header p  { color: rgba(255,255,255,0.92); margin: 0.4rem 0 0; font-size: 1rem; }
+.hero-header h1 {
+    color: #ffffff !important;
+    font-size: 2rem;
+    margin: 0;
+    text-shadow: 1px 2px 6px rgba(0,0,0,0.25);
+}
+.hero-header p {
+    color: rgba(255,255,255,0.95) !important;
+    margin: 0.4rem 0 0;
+    font-size: 1rem;
+}
+
+/* ── Séparateur ── */
+hr { border-color: #e8ecf0 !important; }
 
 /* ── Tuiles matières ── */
 div[data-testid="stButton"].mat-btn > button {
-    height: 72px !important; border-radius: 16px !important; font-size: 0.88rem !important;
-    font-weight: bold !important; background-color: #f8f9ff !important;
-    border: 3px solid #e0e4ff !important; color: #333 !important;
-    white-space: pre-line !important; line-height: 1.4 !important; transition: all 0.18s ease !important;
+    height: 76px !important;
+    border-radius: 16px !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    background-color: #f4f6ff !important;
+    border: 2px solid #d4d9f5 !important;
+    color: #1a1a2e !important;
+    white-space: pre-line !important;
+    line-height: 1.4 !important;
+    transition: all 0.18s ease !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
 }
 div[data-testid="stButton"].mat-btn > button:hover {
-    background-color: #4ECDC4 !important; color: white !important;
-    border-color: #4ECDC4 !important; transform: translateY(-3px) !important;
+    background-color: #4ECDC4 !important;
+    color: #ffffff !important;
+    border-color: #4ECDC4 !important;
+    transform: translateY(-3px) !important;
+    box-shadow: 0 6px 16px rgba(78,205,196,0.35) !important;
 }
 div[data-testid="stButton"].mat-btn-selected > button {
-    background-color: #FF6B6B !important; color: white !important;
-    border-color: #FF6B6B !important; box-shadow: 0 4px 14px rgba(255,107,107,0.4) !important;
-    height: 72px !important; border-radius: 16px !important; font-size: 0.88rem !important;
-    font-weight: bold !important; white-space: pre-line !important; line-height: 1.4 !important;
+    background-color: #FF6B6B !important;
+    color: #ffffff !important;
+    border-color: #FF6B6B !important;
+    box-shadow: 0 4px 14px rgba(255,107,107,0.4) !important;
+    height: 76px !important;
+    border-radius: 16px !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    white-space: pre-line !important;
+    line-height: 1.4 !important;
 }
 
-/* ── Modes (cours / exercice) ── */
+/* ── Tuiles mode (cours / exercice) ── */
 div[data-testid="stButton"].mode-btn > button {
-    height: 90px !important; border-radius: 18px !important; font-size: 1rem !important;
-    font-weight: bold !important; background-color: #fff8f0 !important;
-    border: 3px solid #ffe0b2 !important; color: #555 !important;
-    white-space: pre-line !important; line-height: 1.5 !important; transition: all 0.18s !important;
+    height: 96px !important;
+    border-radius: 18px !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    background-color: #fff8f0 !important;
+    border: 2px solid #ffd9b3 !important;
+    color: #1a1a2e !important;
+    white-space: pre-line !important;
+    line-height: 1.5 !important;
+    transition: all 0.18s !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06) !important;
 }
 div[data-testid="stButton"].mode-btn > button:hover {
-    background-color: #FF8E53 !important; color: white !important; border-color: #FF8E53 !important;
+    background-color: #FF8E53 !important;
+    color: #ffffff !important;
+    border-color: #FF8E53 !important;
+    transform: translateY(-2px) !important;
 }
 div[data-testid="stButton"].mode-btn-selected > button {
-    background-color: #FF6B6B !important; color: white !important;
-    border-color: #FF6B6B !important; height: 90px !important; border-radius: 18px !important;
-    font-size: 1rem !important; font-weight: bold !important;
-    white-space: pre-line !important; line-height: 1.5 !important;
+    background-color: #FF6B6B !important;
+    color: #ffffff !important;
+    border-color: #FF6B6B !important;
+    height: 96px !important;
+    border-radius: 18px !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    white-space: pre-line !important;
+    line-height: 1.5 !important;
 }
 
-/* ── Bouton lancement ── */
+/* ── Bouton principal ── */
 div[data-testid="stButton"].launch-btn > button {
     background: linear-gradient(135deg, #FF6B6B, #FF8E53) !important;
-    color: white !important; border-radius: 50px !important; border: none !important;
-    font-size: 1.1rem !important; font-weight: bold !important;
-    padding: 0.85rem 2rem !important; width: 100% !important;
-    box-shadow: 0 5px 18px rgba(255,107,107,0.45) !important;
+    color: #ffffff !important;
+    border-radius: 50px !important;
+    border: none !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    padding: 0.85rem 2rem !important;
+    width: 100% !important;
+    box-shadow: 0 5px 18px rgba(255,107,107,0.40) !important;
+    transition: all 0.2s !important;
+}
+div[data-testid="stButton"].launch-btn > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 24px rgba(255,107,107,0.55) !important;
 }
 
-/* ── Boutons QCM / Vies ── */
+/* ── Boutons QCM (choix) ── */
 div[data-testid="stButton"].choice-btn > button {
-    background-color: #f0f4ff !important; color: #333 !important;
-    border-radius: 14px !important; border: 2px solid #d0d8ff !important;
-    font-size: 0.95rem !important; font-weight: 600 !important;
-    padding: 0.7rem 1rem !important; text-align: left !important;
-    transition: all 0.15s !important; width: 100% !important;
+    background-color: #f4f6ff !important;
+    color: #1a1a2e !important;
+    border-radius: 14px !important;
+    border: 2px solid #d4d9f5 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    padding: 0.75rem 1rem !important;
+    text-align: left !important;
+    transition: all 0.15s !important;
+    width: 100% !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
 }
 div[data-testid="stButton"].choice-btn > button:hover {
-    background-color: #4ECDC4 !important; color: white !important;
-    border-color: #4ECDC4 !important; transform: translateY(-2px) !important;
+    background-color: #4ECDC4 !important;
+    color: #ffffff !important;
+    border-color: #4ECDC4 !important;
+    transform: translateY(-2px) !important;
 }
 div[data-testid="stButton"].choice-correct > button {
-    background-color: #d4edda !important; color: #155724 !important;
-    border-color: #28a745 !important; font-weight: bold !important;
-    height: auto !important; border-radius: 14px !important; font-size: 0.95rem !important;
+    background-color: #d4f5e9 !important;
+    color: #0a5c36 !important;
+    border: 2px solid #28a745 !important;
+    border-radius: 14px !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
 }
 div[data-testid="stButton"].choice-wrong > button {
-    background-color: #f8d7da !important; color: #721c24 !important;
-    border-color: #dc3545 !important; font-weight: bold !important;
-    height: auto !important; border-radius: 14px !important; font-size: 0.95rem !important;
+    background-color: #fde8e8 !important;
+    color: #8b1a1a !important;
+    border: 2px solid #dc3545 !important;
+    border-radius: 14px !important;
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    width: 100% !important;
+    padding: 0.75rem 1rem !important;
+}
+
+/* ── Bouton reset ── */
+div[data-testid="stButton"].reset-btn > button {
+    background: transparent !important;
+    border: 2px solid #d4d9f5 !important;
+    color: #6b7280 !important;
+    border-radius: 50px !important;
+    font-size: 0.82rem !important;
+    transition: all 0.15s !important;
+}
+div[data-testid="stButton"].reset-btn > button:hover {
+    border-color: #FF6B6B !important;
+    color: #FF6B6B !important;
+}
+
+/* ── Boutons réponses rapides ── */
+div[data-testid="stButton"].qr-btn > button {
+    background-color: #f4f6ff !important;
+    color: #1a1a2e !important;
+    border-radius: 50px !important;
+    border: 2px solid #d4d9f5 !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    transition: all 0.15s !important;
+}
+div[data-testid="stButton"].qr-btn > button:hover {
+    background-color: #4ECDC4 !important;
+    color: #ffffff !important;
+    border-color: #4ECDC4 !important;
+}
+
+/* ── Carte contexte séance ── */
+.session-card {
+    background: linear-gradient(90deg, #f0fff8, #f0f4ff);
+    border-left: 5px solid #4ECDC4;
+    border-radius: 12px;
+    padding: 0.75rem 1.2rem;
+    font-size: 0.95rem;
+    color: #1a1a2e !important;
+    box-shadow: 0 2px 8px rgba(78,205,196,0.15);
+}
+
+/* ── Badge score ── */
+.score-badge {
+    background: linear-gradient(135deg, #FFE66D, #FF8E53);
+    border-radius: 50px;
+    padding: 0.3rem 1rem;
+    font-weight: 700;
+    color: #1a1a2e !important;
+    font-size: 0.9rem;
+    display: inline-block;
+    box-shadow: 0 2px 8px rgba(255,142,83,0.30);
+}
+
+/* ── Vies ── */
+.lives-display {
+    font-size: 1.6rem;
+    text-align: center;
+    padding: 0.5rem;
+    letter-spacing: 0.3rem;
 }
 
 /* ── Flashcard ── */
 .flashcard-front {
     background: linear-gradient(135deg, #667eea, #764ba2);
-    border-radius: 20px; padding: 2.5rem; text-align: center;
-    color: white; font-size: 1.4rem; font-weight: bold;
-    min-height: 140px; display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 8px 24px rgba(102,126,234,0.4); margin: 1rem 0;
+    border-radius: 20px;
+    padding: 2.5rem;
+    text-align: center;
+    color: #ffffff !important;
+    font-size: 1.4rem;
+    font-weight: 700;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(102,126,234,0.35);
+    margin: 1rem 0;
 }
 .flashcard-back {
     background: linear-gradient(135deg, #f093fb, #f5576c);
-    border-radius: 20px; padding: 2rem; text-align: center;
-    color: white; font-size: 1.1rem;
-    min-height: 140px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    box-shadow: 0 8px 24px rgba(245,87,108,0.4); margin: 1rem 0;
+    border-radius: 20px;
+    padding: 2rem;
+    text-align: center;
+    color: #ffffff !important;
+    font-size: 1.1rem;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 24px rgba(245,87,108,0.35);
+    margin: 1rem 0;
 }
+.flashcard-back strong { color: #ffffff !important; }
 .flashcard-example {
-    margin-top: 0.8rem; font-style: italic; font-size: 0.9rem;
-    opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.3);
-    padding-top: 0.6rem; width: 100%;
+    margin-top: 0.8rem;
+    font-style: italic;
+    font-size: 0.9rem;
+    opacity: 0.92;
+    border-top: 1px solid rgba(255,255,255,0.35);
+    padding-top: 0.6rem;
+    width: 100%;
+    color: #ffffff !important;
 }
 
-/* ── Vies ── */
-.lives-display {
-    font-size: 1.6rem; text-align: center; padding: 0.5rem;
-    letter-spacing: 0.3rem;
-}
-.score-badge {
-    background: linear-gradient(135deg, #FFE66D, #FF6B6B);
-    border-radius: 50px; padding: 0.3rem 1rem;
-    font-weight: bold; color: white; font-size: 0.9rem;
-    display: inline-block;
+/* ── st.info / st.success / st.warning / st.error ── */
+[data-testid="stAlert"] p { color: inherit !important; }
+
+/* ── Chat messages ── */
+[data-testid="stChatMessage"] {
+    background-color: #f8f9ff !important;
+    border-radius: 14px !important;
+    border: 1px solid #e8ecf0 !important;
 }
 
-/* ── Session card ── */
-.session-card {
-    background: linear-gradient(90deg, #f0fff4, #f0f4ff);
-    border-left: 5px solid #4ECDC4; border-radius: 12px;
-    padding: 0.75rem 1.2rem; font-size: 0.95rem; color: #333;
+/* ── Text input ── */
+[data-testid="stTextInput"] input {
+    background-color: #f8f9ff !important;
+    color: #1a1a2e !important;
+    border: 2px solid #d4d9f5 !important;
+    border-radius: 10px !important;
 }
 
-/* ── Reset btn ── */
-div[data-testid="stButton"].reset-btn > button {
-    background: transparent !important; border: 2px solid #ddd !important;
-    color: #888 !important; border-radius: 50px !important; font-size: 0.82rem !important;
-}
-div[data-testid="stButton"].reset-btn > button:hover {
-    border-color: #FF6B6B !important; color: #FF6B6B !important;
+/* ── Expander ── */
+[data-testid="stExpander"] {
+    background-color: #f8f9ff !important;
+    border: 1px solid #e8ecf0 !important;
+    border-radius: 12px !important;
 }
 
-/* ── Quick replies ── */
-div[data-testid="stButton"].qr-btn > button {
-    background-color: #f0f4ff !important; color: #444 !important;
-    border-radius: 50px !important; border: 2px solid #d0d8ff !important;
-    font-size: 0.82rem !important; font-weight: 600 !important; transition: all 0.15s !important;
-}
-div[data-testid="stButton"].qr-btn > button:hover {
-    background-color: #4ECDC4 !important; color: white !important; border-color: #4ECDC4 !important;
+/* ── Toggle ── */
+[data-testid="stToggle"] label { color: #1a1a2e !important; }
+
+/* ── Captions ── */
+[data-testid="stCaptionContainer"] p { color: #6b7280 !important; }
+
+/* ── Sections titres ── */
+.section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #1a1a2e !important;
+    margin: 1.2rem 0 0.6rem;
 }
 </style>
 """, unsafe_allow_html=True)
-
 
 # ==========================================
 # SESSION STATE
@@ -288,33 +447,30 @@ div[data-testid="stButton"].qr-btn > button:hover {
 _DEFAULTS = {
     "seance_lancee":          False,
     "matiere_temp":           "",
-    "mode_temp":              "",       # "cours" ou "exercice"
+    "mode_temp":              "",
     "matiere":                "",
     "sujet":                  "",
     "mode":                   "",
-    "ui_type":                "",       # "qcm" | "vies" | "flashcard"
+    "ui_type":                "",
 
-    # Chat (fallback + mode cours QCM)
     "chat_session":           None,
     "messages":               [],
     "quick_replies_on":       True,
     "quick_reply_triggered":  None,
 
-    # QCM / Vies partagé
-    "current_question":       None,     # dict JSON parsé
-    "answered":               False,    # a-t-on répondu à la question en cours ?
+    "current_question":       None,
+    "answered":               False,
+    "last_choice":            None,
     "last_answer_correct":    None,
     "score":                  0,
     "total_questions":        0,
 
-    # Vies uniquement
     "vies":                   3,
     "game_over":              False,
     "hint_revealed":          False,
-    "eval_result":            None,   # dict {correct, feedback} après validation
+    "eval_result":            None,
 
-    # Flashcard uniquement
-    "card_revealed":          False,    # recto affiché ou recto+verso
+    "card_revealed":          False,
 }
 for _k, _v in _DEFAULTS.items():
     if _k not in st.session_state:
@@ -346,8 +502,15 @@ def make_model(system_prompt: str):
     )
 
 
-def creer_chat(matiere: str, sujet: str):
-    system = SYSTEM_QCM + f"\n\nMatière : {matiere}\nSujet : {sujet}"
+def creer_chat(matiere: str, sujet: str, ui_type: str = "qcm"):
+    """Crée le chat avec le bon system prompt selon le mode."""
+    if ui_type == "vies":
+        base = SYSTEM_VIES
+    elif ui_type == "flashcard":
+        base = SYSTEM_FLASHCARD
+    else:
+        base = SYSTEM_QCM
+    system = base + f"\n\nMatière : {matiere}\nSujet : {sujet}"
     model = make_model(system)
     return model.start_chat(history=[])
 
@@ -355,12 +518,10 @@ def creer_chat(matiere: str, sujet: str):
 def parse_json_response(text: str) -> dict | None:
     """Extrait et parse le JSON d'une réponse Gemini de manière robuste."""
     try:
-        # Nettoie les balises markdown éventuelles
         clean = re.sub(r"```json|```", "", text).strip()
         return json.loads(clean)
     except Exception:
         try:
-            # Tente d'extraire le premier objet JSON trouvé
             match = re.search(r"\{.*\}", text, re.DOTALL)
             if match:
                 return json.loads(match.group())
@@ -369,27 +530,36 @@ def parse_json_response(text: str) -> dict | None:
     return None
 
 
-def generate_qcm(chat_session, matiere: str, sujet: str, mode: str) -> dict | None:
-    """Demande une nouvelle question QCM ou exercice à l'IA."""
+def generate_qcm(chat_session, matiere: str, sujet: str) -> tuple:
+    """Génère une question QCM pour le mode compréhension de cours."""
     if st.session_state.total_questions == 0:
         prompt = (
-            f"Génère la première question pour aider l'élève à {'comprendre son cours de' if mode == 'cours' else 's\'entraîner sur'} "
+            f"Génère la première question pour aider l'élève à comprendre son cours de "
             f"{matiere} — sujet : {sujet}. "
-            "Commence par une courte blague rigolote (1 ligne), puis génère le JSON de la question."
+            "Commence par une courte blague rigolote (1 ligne), puis génère le JSON."
         )
     else:
-        prompt = (
-            f"Question suivante sur {sujet}. "
-            f"{'Augmente légèrement la difficulté.' if mode != 'cours' else 'Aborde un autre aspect du cours.'} "
-            "Réponds uniquement avec le JSON."
-        )
-
+        prompt = f"Question suivante sur {sujet}. Aborde un autre aspect du cours. JSON uniquement."
     response = chat_session.send_message(prompt)
     return parse_json_response(response.text), response.text
 
 
-def generate_flashcard(chat_session, matiere: str, sujet: str) -> dict | None:
-    """Demande une nouvelle flashcard à l'IA."""
+def generate_problem(chat_session, matiere: str, sujet: str) -> tuple:
+    """Génère un problème à réponse libre pour le mode exercices (vies)."""
+    if st.session_state.total_questions == 0:
+        prompt = (
+            f"Génère le premier exercice pour que l'élève s'entraîne sur "
+            f"{matiere} — sujet : {sujet}. "
+            "Commence par une courte blague rigolote (1 ligne), puis génère le JSON."
+        )
+    else:
+        prompt = "Exercice suivant. Augmente légèrement la difficulté. JSON uniquement."
+    response = chat_session.send_message(prompt)
+    return parse_json_response(response.text), response.text
+
+
+def generate_flashcard(chat_session, matiere: str, sujet: str) -> tuple:
+    """Génère une flashcard."""
     if st.session_state.total_questions == 0:
         prompt = (
             f"On va travailler sur {matiere} — sujet : {sujet}. "
@@ -398,7 +568,6 @@ def generate_flashcard(chat_session, matiere: str, sujet: str) -> dict | None:
         )
     else:
         prompt = "Flashcard suivante sur le même sujet. JSON uniquement."
-
     response = chat_session.send_message(prompt)
     return parse_json_response(response.text), response.text
 
@@ -408,16 +577,12 @@ def evaluate_answer(chat_session, solution: str, student_answer: str) -> dict:
     prompt = f"EVAL|{solution}|{student_answer}"
     response = chat_session.send_message(prompt)
     data = parse_json_response(response.text)
-    if data:
-        return data
-    # Fallback si le parsing échoue
-    return {"correct": False, "feedback": "Je n'ai pas pu évaluer ta réponse, réessaie ! 🤔"}
+    return data if data else {"correct": False, "feedback": "Je n'ai pas pu évaluer ta réponse, réessaie ! 🤔"}
 
 
 def analyser_photo(image: Image.Image, matiere: str) -> str:
-    model = make_model(
-        SYSTEM_VIES if matiere in MATIERES_VIES else SYSTEM_QCM
-    )
+    """Analyse un examen blanc et retourne des exercices similaires."""
+    model = make_model(SYSTEM_VIES if matiere in MATIERES_VIES else SYSTEM_QCM)
     prompt = (
         f"Voici une photo d'examen blanc de {matiere} (niveau 5ème). "
         "Analyse les types et le niveau des exercices. "
@@ -435,10 +600,11 @@ def generer_pdf(matiere: str, sujet: str, mode: str, messages: list) -> bytes:
     pdf.set_fill_color(255, 107, 107)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 14, "Fiche d'exercice  -  Classe de 5eme", ln=True, align="C", fill=True)
+    pdf.cell(0, 14, "Fiche de revision - Classe de 5eme", ln=True, align="C", fill=True)
     pdf.set_text_color(80, 80, 80)
     pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 8, f"Matiere : {matiere}   |   Sujet : {sujet}   |   Mode : {mode}", ln=True, align="C")
+    mode_label = "Comprehension du cours (QCM)" if mode == "cours" else "Exercices d'application"
+    pdf.cell(0, 8, f"Matiere : {matiere}  |  Sujet : {sujet}  |  Mode : {mode_label}", ln=True, align="C")
     pdf.ln(8)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Arial", "B", 12)
@@ -481,7 +647,7 @@ st.markdown("""
 if not st.session_state.seance_lancee:
 
     # ── 1. Matière ──
-    st.markdown("### 1️⃣ Choisis ta matière")
+    st.markdown('<p class="section-title">1️⃣ Choisis ta matière</p>', unsafe_allow_html=True)
     cols = st.columns(4)
     for i, (mat, emoji) in enumerate(MATIERES.items()):
         is_sel = st.session_state.matiere_temp == mat
@@ -496,17 +662,18 @@ if not st.session_state.seance_lancee:
 
     matiere_choisie = st.session_state.matiere_temp
     if matiere_choisie == "Autre":
-        matiere_choisie = st.text_input("Précise ta matière :", placeholder="Ex: Technologie, Latin...")
+        matiere_choisie = st.text_input(
+            "Précise ta matière :", placeholder="Ex: Technologie, Latin, Musique..."
+        )
 
     st.markdown("---")
 
     # ── 2. Mode ──
-    st.markdown("### 2️⃣ Qu'est-ce que tu veux faire ?")
+    st.markdown('<p class="section-title">2️⃣ Qu\'est-ce que tu veux faire ?</p>', unsafe_allow_html=True)
     mode_cols = st.columns(2)
-
     modes = {
-        "cours":    ("📚", "Comprendre le cours", "QCM pour tester tes connaissances"),
-        "exercice": ("✏️", "Faire des exercices",  "Entraîne-toi avec des exercices"),
+        "cours":    ("📚", "Comprendre le cours",  "QCM sur les notions clés"),
+        "exercice": ("✏️", "Faire des exercices",   "Problèmes avec réponse libre"),
     }
     for i, (mode_key, (emoji, titre, desc)) in enumerate(modes.items()):
         is_sel = st.session_state.mode_temp == mode_key
@@ -519,28 +686,31 @@ if not st.session_state.seance_lancee:
                 st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
-    # Info dynamique selon le combo matière + mode
+    # Info dynamique
     if st.session_state.matiere_temp and st.session_state.mode_temp:
         ui = get_ui_type(st.session_state.matiere_temp, st.session_state.mode_temp)
         infos = {
-            "qcm":       "🧠 Mode QCM — 4 propositions, clique sur la bonne réponse !",
-            "vies":      "❤️ Mode Exercices — 3 vies, ne te trompe pas trop ! 😅",
-            "flashcard": "🃏 Mode Flashcards — recto / verso, teste ta mémoire !",
+            "qcm":       "🧠 **Mode QCM** — 4 propositions, clique sur la bonne réponse !",
+            "vies":      "❤️ **Mode Exercices** — 3 vies, problèmes à résoudre librement",
+            "flashcard": "🃏 **Mode Flashcards** — recto / verso, teste ta mémoire !",
         }
         st.info(infos[ui])
 
     st.markdown("---")
 
     # ── 3. Sujet ──
-    st.markdown("### 3️⃣ Sur quel sujet veux-tu travailler ?")
-    sujet = st.text_input("", placeholder="Ex: Les fractions, La Révolution française, Les volcans...",
-                          label_visibility="collapsed")
+    st.markdown('<p class="section-title">3️⃣ Sur quel sujet veux-tu travailler ?</p>', unsafe_allow_html=True)
+    sujet = st.text_input(
+        "", placeholder="Ex: Les fractions, La Révolution française, Les volcans...",
+        label_visibility="collapsed",
+    )
 
-    # ── 4. Photo optionnelle ──
-    st.markdown("### 4️⃣ Tu as un examen blanc ? *(optionnel)*")
-    st.caption("📷 L'IA analyse ta copie et génère des exercices du même type.")
-    photo = st.file_uploader("Dépose une photo ici", type=["png", "jpg", "jpeg"],
-                             label_visibility="collapsed")
+    # ── 4. Photo ──
+    st.markdown('<p class="section-title">4️⃣ Tu as un examen blanc ? <span style="font-weight:400;color:#6b7280">(optionnel)</span></p>', unsafe_allow_html=True)
+    st.caption("📷 L'IA analyse ta copie et génère des exercices du même type pour t'entraîner.")
+    photo = st.file_uploader(
+        "Dépose une photo ici", type=["png", "jpg", "jpeg"], label_visibility="collapsed"
+    )
     if photo:
         st.image(photo, caption="Photo reçue ✅", width=260)
 
@@ -562,7 +732,7 @@ if not st.session_state.seance_lancee:
             with st.spinner("Ton tuteur se prépare... 🎯"):
                 try:
                     ui_type = get_ui_type(matiere_choisie, st.session_state.mode_temp)
-                    chat = creer_chat(matiere_choisie, sujet)
+                    chat    = creer_chat(matiere_choisie, sujet, ui_type)
 
                     st.session_state.chat_session  = chat
                     st.session_state.matiere       = matiere_choisie
@@ -571,29 +741,25 @@ if not st.session_state.seance_lancee:
                     st.session_state.ui_type       = ui_type
                     st.session_state.seance_lancee = True
 
-                    # Si photo : analyse et injecte en contexte
                     if photo:
                         img = Image.open(photo)
                         exercices_photo = analyser_photo(img, matiere_choisie)
-                        # On stocke ça en premier message système
                         chat.send_message(
                             f"Contexte examen blanc fourni par l'élève :\n{exercices_photo}\n"
-                            "Utilise ces exercices comme base pour les questions."
+                            "Utilise ces exercices comme base pour les premières questions."
                         )
 
-                    # Génère la première question
-                    if ui_type in ("qcm", "vies"):
-                        data, raw = generate_qcm(chat, matiere_choisie, sujet, st.session_state.mode_temp)
-                        if data:
-                            st.session_state.current_question = data
-                        else:
-                            st.session_state.messages.append({"role": "assistant", "content": raw})
-                    else:  # flashcard
+                    if ui_type == "qcm":
+                        data, raw = generate_qcm(chat, matiere_choisie, sujet)
+                    elif ui_type == "vies":
+                        data, raw = generate_problem(chat, matiere_choisie, sujet)
+                    else:
                         data, raw = generate_flashcard(chat, matiere_choisie, sujet)
-                        if data:
-                            st.session_state.current_question = data
-                        else:
-                            st.session_state.messages.append({"role": "assistant", "content": raw})
+
+                    if data:
+                        st.session_state.current_question = data
+                    else:
+                        st.session_state.messages.append({"role": "assistant", "content": raw})
 
                     st.rerun()
                 except Exception as e:
@@ -609,10 +775,10 @@ else:
     sujet   = st.session_state.sujet
     mode    = st.session_state.mode
 
-    # ── Barre de contexte ──
+    # ── Barre contexte ──
     col_ctx, col_reset = st.columns([5, 1])
     with col_ctx:
-        emoji_mat = MATIERES.get(matiere, "📚")
+        emoji_mat  = MATIERES.get(matiere, "📚")
         mode_label = "📚 Cours" if mode == "cours" else "✏️ Exercices"
         st.markdown(
             f'<div class="session-card">'
@@ -629,34 +795,31 @@ else:
 
     st.markdown("---")
 
-    # ══════════════════════════════════════
-    # MODE QCM (cours)
-    # ══════════════════════════════════════
+    # ══════════════════════════════════════════════
+    # MODE QCM — compréhension du cours
+    # ══════════════════════════════════════════════
     if ui_type == "qcm":
-        # Score
-        col_s1, col_s2 = st.columns(2)
-        with col_s1:
-            st.markdown(
-                f'<div class="score-badge">⭐ Score : {st.session_state.score} / {st.session_state.total_questions}</div>',
-                unsafe_allow_html=True,
-            )
+        st.markdown(
+            f'<div style="text-align:right"><span class="score-badge">⭐ Score : {st.session_state.score} / {st.session_state.total_questions}</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.markdown("")
 
         q = st.session_state.current_question
         if q:
             st.markdown(f"### ❓ {q.get('question', '')}")
             st.markdown("")
 
-            choices = q.get("choices", {})
+            choices  = q.get("choices", {})
             answered = st.session_state.answered
             correct  = q.get("correct", "")
 
             choice_cols = st.columns(2)
             for i, (key, val) in enumerate(choices.items()):
-                # Détermine la couleur post-réponse
                 if answered:
                     if key == correct:
                         css = "choice-correct"
-                    elif key == st.session_state.get("last_choice") and key != correct:
+                    elif key == st.session_state.last_choice and key != correct:
                         css = "choice-wrong"
                     else:
                         css = "choice-btn"
@@ -666,8 +829,8 @@ else:
                 with choice_cols[i % 2]:
                     st.markdown(f'<div class="{css}">', unsafe_allow_html=True)
                     if st.button(f"{key}. {val}", key=f"qcm_{key}", use_container_width=True, disabled=answered):
-                        st.session_state.answered    = True
-                        st.session_state.last_choice = key
+                        st.session_state.answered         = True
+                        st.session_state.last_choice      = key
                         st.session_state.total_questions += 1
                         if key == correct:
                             st.session_state.score += 1
@@ -677,7 +840,6 @@ else:
                         st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
 
-            # Feedback post-réponse
             if answered:
                 if st.session_state.last_answer_correct:
                     st.success(f"✅ Bravo ! {q.get('explanation', '')}")
@@ -689,11 +851,10 @@ else:
                 if st.button("➡️ Question suivante", use_container_width=True):
                     with st.spinner("Chargement..."):
                         try:
-                            data, raw = generate_qcm(
-                                st.session_state.chat_session, matiere, sujet, mode
-                            )
-                            st.session_state.current_question = data if data else None
-                            st.session_state.answered         = False
+                            data, raw = generate_qcm(st.session_state.chat_session, matiere, sujet)
+                            st.session_state.current_question    = data if data else None
+                            st.session_state.answered            = False
+                            st.session_state.last_choice         = None
                             st.session_state.last_answer_correct = None
                             if not data:
                                 st.session_state.messages.append({"role": "assistant", "content": raw})
@@ -702,9 +863,9 @@ else:
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
-    # ══════════════════════════════════════
-    # MODE VIES (exercices Maths/Sciences/Histoire)
-    # ══════════════════════════════════════
+    # ══════════════════════════════════════════════
+    # MODE VIES — exercices à réponse libre
+    # ══════════════════════════════════════════════
     elif ui_type == "vies":
         vies   = st.session_state.vies
         hearts = "❤️" * vies + "🖤" * (3 - vies)
@@ -722,18 +883,16 @@ else:
             st.markdown(f"**Ton score final : {st.session_state.score} / {st.session_state.total_questions}** 🎯")
             st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
             if st.button("🔄 Recommencer avec 3 vies", use_container_width=True):
-                st.session_state.vies             = 3
-                st.session_state.game_over        = False
-                st.session_state.score            = 0
-                st.session_state.total_questions  = 0
-                st.session_state.answered         = False
-                st.session_state.hint_revealed    = False
-                st.session_state.eval_result      = None
+                st.session_state.vies            = 3
+                st.session_state.game_over       = False
+                st.session_state.score           = 0
+                st.session_state.total_questions = 0
+                st.session_state.answered        = False
+                st.session_state.hint_revealed   = False
+                st.session_state.eval_result     = None
                 with st.spinner("On repart ! 🚀"):
                     try:
-                        data, raw = generate_qcm(
-                            st.session_state.chat_session, matiere, sujet, mode
-                        )
+                        data, raw = generate_problem(st.session_state.chat_session, matiere, sujet)
                         st.session_state.current_question = data if data else None
                     except Exception as e:
                         st.error(f"❌ {e}")
@@ -743,24 +902,21 @@ else:
         else:
             q = st.session_state.current_question
             if q:
-                # Énoncé du problème
                 st.markdown("### 📝 Problème")
                 st.info(q.get("problem", ""))
 
-                # Indice (masqué par défaut)
+                # Indice masqué par défaut
                 if not st.session_state.hint_revealed:
-                    if st.button("💡 Voir un indice", key="hint_btn"):
+                    if st.button("💡 Voir un indice"):
                         st.session_state.hint_revealed = True
                         st.rerun()
                 else:
                     st.warning(f"💡 **Indice :** {q.get('hint', '')}")
 
                 st.markdown("")
-
                 answered = st.session_state.answered
 
                 if not answered:
-                    # Champ de réponse libre
                     student_answer = st.text_input(
                         "✏️ Ta réponse :",
                         placeholder="Écris ta réponse ici...",
@@ -795,78 +951,73 @@ else:
                                 except Exception as e:
                                     st.error(f"❌ {e}")
                             st.rerun()
-
                 else:
-                    # Feedback après validation
                     result = st.session_state.eval_result or {}
                     if result.get("correct"):
                         st.success(f"✅ {result.get('feedback', '')}")
                     else:
                         st.error(
-                            f"❌ {result.get('feedback', '')} "
-                            f"La bonne réponse était : **{q.get('solution', '')}**\n\n"
+                            f"❌ {result.get('feedback', '')}  \n"
+                            f"La bonne réponse était : **{q.get('solution', '')}**  \n"
                             f"*{q.get('explanation', '')}*"
                         )
                         if st.session_state.game_over:
                             st.rerun()
 
                     if not st.session_state.game_over:
+                        st.markdown("")
                         st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
                         if st.button("➡️ Exercice suivant", use_container_width=True):
                             with st.spinner("Chargement..."):
                                 try:
-                                    data, raw = generate_qcm(
-                                        st.session_state.chat_session, matiere, sujet, mode
+                                    data, raw = generate_problem(
+                                        st.session_state.chat_session, matiere, sujet
                                     )
                                     st.session_state.current_question    = data if data else None
                                     st.session_state.answered            = False
                                     st.session_state.last_answer_correct = None
                                     st.session_state.hint_revealed       = False
                                     st.session_state.eval_result         = None
+                                    if not data:
+                                        st.session_state.messages.append({"role": "assistant", "content": raw})
                                 except Exception as e:
                                     st.error(f"❌ {e}")
                             st.rerun()
                         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ══════════════════════════════════════
-    # MODE FLASHCARD (langues / Français)
-    # ══════════════════════════════════════
+    # ══════════════════════════════════════════════
+    # MODE FLASHCARD
+    # ══════════════════════════════════════════════
     elif ui_type == "flashcard":
-        card = st.session_state.current_question
+        card  = st.session_state.current_question
         score = st.session_state.score
         total = st.session_state.total_questions
 
         col_sc = st.columns(3)
-        with col_sc[0]:
-            st.markdown(f"✅ **{score}** sus", unsafe_allow_html=False)
-        with col_sc[1]:
-            st.markdown(f"📚 **{total}** cartes", unsafe_allow_html=False)
+        with col_sc[0]: st.markdown(f"✅ **{score}** sus")
+        with col_sc[1]: st.markdown(f"📚 **{total}** cartes")
         with col_sc[2]:
-            ratio = int((score / total * 100)) if total > 0 else 0
+            ratio = int(score / total * 100) if total > 0 else 0
             st.markdown(f"🎯 **{ratio}%**")
 
         st.markdown("")
 
         if card:
-            # Recto toujours affiché
             st.markdown(
                 f'<div class="flashcard-front">{card.get("front", "")}</div>',
                 unsafe_allow_html=True,
             )
 
-            # Indice optionnel
             if card.get("hint"):
                 st.caption(f"💡 Indice : {card['hint']}")
 
             if not st.session_state.card_revealed:
-                # Bouton retourner
                 col_r = st.columns([1, 2, 1])
                 with col_r[1]:
                     if st.button("🔄 Retourner la carte", use_container_width=True):
                         st.session_state.card_revealed = True
                         st.rerun()
             else:
-                # Verso
                 example_html = ""
                 if card.get("example"):
                     example_html = f'<div class="flashcard-example">📝 {card["example"]}</div>'
@@ -881,13 +1032,12 @@ else:
                 st.markdown("#### Tu savais ?")
                 eval_cols = st.columns(3)
                 evals = [("✅ Je savais !", 1), ("🤔 Presque...", 0), ("❌ Je savais pas", 0)]
-                for i, (label, pts) in enumerate(evals):
-                    with eval_cols[i]:
-                        if st.button(label, key=f"eval_{i}", use_container_width=True):
+                for idx, (label, pts) in enumerate(evals):
+                    with eval_cols[idx]:
+                        if st.button(label, key=f"eval_{idx}", use_container_width=True):
                             st.session_state.total_questions += 1
                             st.session_state.score           += pts
                             st.session_state.card_revealed   = False
-                            st.session_state.answered        = True
                             with st.spinner("Prochaine carte..."):
                                 try:
                                     data, raw = generate_flashcard(
@@ -900,9 +1050,9 @@ else:
                                     st.error(f"❌ {e}")
                             st.rerun()
 
-    # ══════════════════════════════════════
-    # SECTION CHAT LIBRE (tous modes)
-    # ══════════════════════════════════════
+    # ══════════════════════════════════════════════
+    # CHAT LIBRE (tous modes)
+    # ══════════════════════════════════════════════
     st.markdown("---")
     with st.expander("💬 Poser une question au tuteur"):
         for msg in st.session_state.messages:
@@ -928,7 +1078,7 @@ else:
             st.session_state.messages.append({"role": "user", "content": user_msg})
             try:
                 resp = st.session_state.chat_session.send_message(user_msg)
-                raw = re.sub(r"```json.*?```", "", resp.text, flags=re.DOTALL).strip()
+                raw  = re.sub(r"```json.*?```", "", resp.text, flags=re.DOTALL).strip()
                 st.session_state.messages.append({"role": "assistant", "content": raw})
             except Exception as e:
                 st.error(f"❌ {e}")
@@ -938,18 +1088,17 @@ else:
             st.session_state.messages.append({"role": "user", "content": user_input})
             try:
                 resp = st.session_state.chat_session.send_message(user_input)
-                raw = re.sub(r"```json.*?```", "", resp.text, flags=re.DOTALL).strip()
+                raw  = re.sub(r"```json.*?```", "", resp.text, flags=re.DOTALL).strip()
                 st.session_state.messages.append({"role": "assistant", "content": raw})
             except Exception as e:
                 st.error(f"❌ {e}")
             st.rerun()
 
-    # ══════════════════════════════════════
+    # ══════════════════════════════════════════════
     # EXPORT PDF
-    # ══════════════════════════════════════
-    st.markdown("---")
-    with st.expander("📥 Exporter en PDF"):
-        st.caption("Génère une fiche imprimable de ta séance.")
+    # ══════════════════════════════════════════════
+    with st.expander("📥 Exporter ma séance en PDF"):
+        st.caption("Génère une fiche imprimable avec le contenu de ta séance.")
         if st.button("📄 Générer ma fiche PDF"):
             try:
                 pdf_bytes = generer_pdf(matiere, sujet, mode, st.session_state.messages)
@@ -962,7 +1111,9 @@ else:
             except Exception as e:
                 st.error(f"❌ Erreur PDF : {e}")
 
-    # Ballons si bonne séance
-    if st.session_state.score >= 5 and st.session_state.total_questions >= 5:
-        if st.session_state.score / st.session_state.total_questions >= 0.8:
-            st.balloons()
+    # Ballons si bonne performance
+    if (
+        st.session_state.total_questions >= 5
+        and st.session_state.score / st.session_state.total_questions >= 0.8
+    ):
+        st.balloons()
