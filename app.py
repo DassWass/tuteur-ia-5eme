@@ -215,7 +215,7 @@ MODEL_NAME = "gemini-2.5-flash-lite"
 
 # Thinking désactivé : inutile pour du tutorat 5ème, et très coûteux en tokens
 GENERATION_CONFIG = genai.GenerationConfig(
-    thinking_config={"thinking_budget": 0}
+    temperature=0.7,
 )
 
 
