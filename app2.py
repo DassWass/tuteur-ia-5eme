@@ -80,27 +80,30 @@ RÈGLES :
 """
 
 SYSTEM_VIES = SYSTEM_BASE + """
-Tu génères des exercices d'application pour que l'élève s'entraîne, avec 3 vies disponibles.
+Tu génères des problèmes et exercices d'application à réponse libre pour que l'élève s'entraîne.
 
 Pour CHAQUE exercice, réponds UNIQUEMENT avec ce JSON :
 {
-  "question": "L'énoncé de l'exercice, clair et adapté au niveau 5ème",
-  "choices": {
-    "A": "Première proposition",
-    "B": "Deuxième proposition",
-    "C": "Troisième proposition",
-    "D": "Quatrième proposition"
-  },
-  "correct": "A",
-  "explanation": "Explication de la solution avec les étapes de raisonnement (3-4 phrases, avec emoji)",
-  "hint": "Un petit indice si l'élève bloque (sans donner la réponse)"
+  "problem": "L'énoncé complet du problème ou exercice, clair et adapté au niveau 5ème",
+  "solution": "La réponse exacte attendue (courte : un nombre, une date, un mot, une formule...)",
+  "explanation": "Explication détaillée de la solution avec les étapes de raisonnement (3-4 phrases, avec emoji)",
+  "hint": "Un indice utile qui guide sans donner la réponse (ex: 'Pense à la formule P = ...')"
 }
 
 RÈGLES :
 - Exercices progressifs : commence simple, augmente la difficulté
-- Toujours 4 propositions avec une seule bonne réponse
-- Les pièges doivent être réalistes (erreurs classiques d'élèves)
-- L'explication doit montrer le raisonnement étape par étape
+- L'énoncé doit être précis et sans ambiguïté
+- La solution doit être courte et vérifiable (un résultat, pas une phrase entière)
+- L'indice doit vraiment aider sans spoiler la réponse
+- L'explication montre le raisonnement complet étape par étape
+
+Pour évaluer une réponse de l'élève, tu recevras un message au format :
+EVAL|<solution_attendue>|<réponse_élève>
+Réponds UNIQUEMENT avec ce JSON :
+{
+  "correct": true ou false,
+  "feedback": "Message encourageant avec explication (2-3 phrases, avec emoji)"
+}
 """
 
 SYSTEM_FLASHCARD = SYSTEM_BASE + """
@@ -307,6 +310,8 @@ _DEFAULTS = {
     # Vies uniquement
     "vies":                   3,
     "game_over":              False,
+    "hint_revealed":          False,
+    "eval_result":            None,   # dict {correct, feedback} après validation
 
     # Flashcard uniquement
     "card_revealed":          False,    # recto affiché ou recto+verso
@@ -396,6 +401,17 @@ def generate_flashcard(chat_session, matiere: str, sujet: str) -> dict | None:
 
     response = chat_session.send_message(prompt)
     return parse_json_response(response.text), response.text
+
+
+def evaluate_answer(chat_session, solution: str, student_answer: str) -> dict:
+    """Demande à l'IA d'évaluer la réponse libre de l'élève."""
+    prompt = f"EVAL|{solution}|{student_answer}"
+    response = chat_session.send_message(prompt)
+    data = parse_json_response(response.text)
+    if data:
+        return data
+    # Fallback si le parsing échoue
+    return {"correct": False, "feedback": "Je n'ai pas pu évaluer ta réponse, réessaie ! 🤔"}
 
 
 def analyser_photo(image: Image.Image, matiere: str) -> str:
@@ -690,7 +706,6 @@ else:
     # MODE VIES (exercices Maths/Sciences/Histoire)
     # ══════════════════════════════════════
     elif ui_type == "vies":
-        # Affichage vies + score
         vies   = st.session_state.vies
         hearts = "❤️" * vies + "🖤" * (3 - vies)
         col_v1, col_v2 = st.columns(2)
@@ -707,11 +722,13 @@ else:
             st.markdown(f"**Ton score final : {st.session_state.score} / {st.session_state.total_questions}** 🎯")
             st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
             if st.button("🔄 Recommencer avec 3 vies", use_container_width=True):
-                st.session_state.vies          = 3
-                st.session_state.game_over     = False
-                st.session_state.score         = 0
-                st.session_state.total_questions = 0
-                st.session_state.answered      = False
+                st.session_state.vies             = 3
+                st.session_state.game_over        = False
+                st.session_state.score            = 0
+                st.session_state.total_questions  = 0
+                st.session_state.answered         = False
+                st.session_state.hint_revealed    = False
+                st.session_state.eval_result      = None
                 with st.spinner("On repart ! 🚀"):
                     try:
                         data, raw = generate_qcm(
@@ -726,69 +743,90 @@ else:
         else:
             q = st.session_state.current_question
             if q:
-                st.markdown(f"### 📝 {q.get('question', '')}")
+                # Énoncé du problème
+                st.markdown("### 📝 Problème")
+                st.info(q.get("problem", ""))
+
+                # Indice (masqué par défaut)
+                if not st.session_state.hint_revealed:
+                    if st.button("💡 Voir un indice", key="hint_btn"):
+                        st.session_state.hint_revealed = True
+                        st.rerun()
+                else:
+                    st.warning(f"💡 **Indice :** {q.get('hint', '')}")
+
                 st.markdown("")
 
-                choices  = q.get("choices", {})
                 answered = st.session_state.answered
-                correct  = q.get("correct", "")
 
-                choice_cols = st.columns(2)
-                for i, (key, val) in enumerate(choices.items()):
-                    if answered:
-                        if key == correct:
-                            css = "choice-correct"
-                        elif key == st.session_state.get("last_choice") and key != correct:
-                            css = "choice-wrong"
+                if not answered:
+                    # Champ de réponse libre
+                    student_answer = st.text_input(
+                        "✏️ Ta réponse :",
+                        placeholder="Écris ta réponse ici...",
+                        key="student_answer_input",
+                    )
+                    st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
+                    valider = st.button("✅ Valider ma réponse", use_container_width=True)
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                    if valider:
+                        if not student_answer.strip():
+                            st.warning("⚠️ Écris ta réponse avant de valider !")
                         else:
-                            css = "choice-btn"
-                    else:
-                        css = "choice-btn"
+                            with st.spinner("Ton tuteur vérifie... 🔍"):
+                                try:
+                                    result = evaluate_answer(
+                                        st.session_state.chat_session,
+                                        q.get("solution", ""),
+                                        student_answer.strip(),
+                                    )
+                                    st.session_state.eval_result      = result
+                                    st.session_state.answered         = True
+                                    st.session_state.total_questions += 1
+                                    if result.get("correct"):
+                                        st.session_state.score += 1
+                                        st.session_state.last_answer_correct = True
+                                    else:
+                                        st.session_state.vies -= 1
+                                        st.session_state.last_answer_correct = False
+                                        if st.session_state.vies <= 0:
+                                            st.session_state.game_over = True
+                                except Exception as e:
+                                    st.error(f"❌ {e}")
+                            st.rerun()
 
-                    with choice_cols[i % 2]:
-                        st.markdown(f'<div class="{css}">', unsafe_allow_html=True)
-                        if st.button(f"{key}. {val}", key=f"vies_{key}", use_container_width=True, disabled=answered):
-                            st.session_state.answered        = True
-                            st.session_state.last_choice     = key
-                            st.session_state.total_questions += 1
-                            if key == correct:
-                                st.session_state.score += 1
-                                st.session_state.last_answer_correct = True
-                            else:
-                                st.session_state.vies -= 1
-                                st.session_state.last_answer_correct = False
-                                if st.session_state.vies <= 0:
-                                    st.session_state.game_over = True
+                else:
+                    # Feedback après validation
+                    result = st.session_state.eval_result or {}
+                    if result.get("correct"):
+                        st.success(f"✅ {result.get('feedback', '')}")
+                    else:
+                        st.error(
+                            f"❌ {result.get('feedback', '')} "
+                            f"La bonne réponse était : **{q.get('solution', '')}**\n\n"
+                            f"*{q.get('explanation', '')}*"
+                        )
+                        if st.session_state.game_over:
+                            st.rerun()
+
+                    if not st.session_state.game_over:
+                        st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
+                        if st.button("➡️ Exercice suivant", use_container_width=True):
+                            with st.spinner("Chargement..."):
+                                try:
+                                    data, raw = generate_qcm(
+                                        st.session_state.chat_session, matiere, sujet, mode
+                                    )
+                                    st.session_state.current_question    = data if data else None
+                                    st.session_state.answered            = False
+                                    st.session_state.last_answer_correct = None
+                                    st.session_state.hint_revealed       = False
+                                    st.session_state.eval_result         = None
+                                except Exception as e:
+                                    st.error(f"❌ {e}")
                             st.rerun()
                         st.markdown("</div>", unsafe_allow_html=True)
-
-                # Feedback
-                if answered and not st.session_state.game_over:
-                    if st.session_state.last_answer_correct:
-                        st.success(f"✅ Excellent ! {q.get('explanation', '')}")
-                    else:
-                        remaining = st.session_state.vies
-                        st.error(
-                            f"❌ Raté ! La bonne réponse était **{correct}**. "
-                            f"{q.get('explanation', '')} "
-                            f"({'Il te reste ' + str(remaining) + ' vie(s) ❤️' if remaining > 0 else ''})"
-                        )
-
-                    st.markdown("")
-                    st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
-                    if st.button("➡️ Exercice suivant", use_container_width=True):
-                        with st.spinner("Chargement..."):
-                            try:
-                                data, raw = generate_qcm(
-                                    st.session_state.chat_session, matiere, sujet, mode
-                                )
-                                st.session_state.current_question    = data if data else None
-                                st.session_state.answered            = False
-                                st.session_state.last_answer_correct = None
-                            except Exception as e:
-                                st.error(f"❌ {e}")
-                        st.rerun()
-                    st.markdown("</div>", unsafe_allow_html=True)
 
     # ══════════════════════════════════════
     # MODE FLASHCARD (langues / Français)
