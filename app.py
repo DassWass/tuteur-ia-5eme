@@ -54,11 +54,15 @@ GENERATION_CONFIG = genai.GenerationConfig(
 )
 
 # ==========================================
-# SYSTEM PROMPTS (Bridés niveau 5ème)
+# SYSTEM PROMPTS (Bridés niveau 5ème + Style Officiel)
 # ==========================================
 SYSTEM_BASE = """Tu es un tuteur super sympa, bienveillant et patient pour des élèves de 5ème (12-13 ans).
-RÈGLE ABSOLUE : Tu dois STRICTEMENT te limiter au programme officiel de l'Éducation Nationale française pour la classe de 5ème (début du Cycle 4). 
-Le vocabulaire utilisé doit être parfaitement compréhensible par un enfant de 12 ans. Ne propose JAMAIS de notions, de formules ou de vocabulaire vus en 4ème, 3ème ou au lycée.
+
+RÈGLE ABSOLUE 1 - PÉRIMÈTRE : Tu dois STRICTEMENT te limiter au programme officiel de l'Éducation Nationale française pour la classe de 5ème (début du Cycle 4). 
+Ne propose JAMAIS de notions, de formules ou de vocabulaire vus en 4ème, 3ème ou au lycée.
+
+RÈGLE ABSOLUE 2 - SOURCES ET STYLE : Inspire-toi DIRECTEMENT des manuels scolaires français classiques (Nathan, Hatier, Bordas, Sésamath) et des plateformes de révision reconnues (Lumni, Kartable). Tes énoncés, QCM et problèmes doivent avoir la même rigueur, la même structure, le même vocabulaire et le même type de mise en situation que les exercices officiels donnés en classe.
+
 Utilise le tutoiement, des emojis et un ton jeune et motivant.
 """
 
@@ -246,10 +250,8 @@ def creer_chat(matiere: str, sujet: str, ui_type: str):
 
 def parse_json_response(text: str) -> dict | None:
     try:
-        # Avec response_mime_type="application/json", le texte EST le JSON
         return json.loads(text)
     except Exception:
-        # Fallback au cas où l'API renvoie des balises markdown malgré la config
         try:
             clean = re.sub(r"```json|```", "", text).strip()
             return json.loads(clean)
@@ -261,18 +263,30 @@ def generate_next(chat_session, matiere: str, sujet: str, difficulty: str, is_fi
     if is_first:
         prompt = f"Génère la première question de niveau {diff_label} pour {matiere} — sujet : {sujet}. Commence par une courte blague, puis format JSON."
     else:
-        prompt = f"Prochaine question de niveau {diff_label} sur {sujet}."
-    response = chat_session.send_message(prompt)
-    return parse_json_response(response.text), response.text
+        prompt = (
+            f"Prochaine question de niveau {diff_label} sur {sujet}. "
+            "CONTRAINTE MAJEURE : Change l'angle d'approche, le contexte de l'énoncé, ou les valeurs numériques. "
+            "L'exercice doit être STRICTEMENT DIFFÉRENT de tous ceux que tu as déjà posés."
+        )
+    
+    try:
+        response = chat_session.send_message(prompt)
+        return parse_json_response(response.text), response.text
+    except Exception as e:
+        return None, f"❌ Erreur de génération : {e}"
 
 def evaluate_answer(chat_session, fmt: str, expected, student_answer: str) -> dict:
     if fmt == "ouvert":
         prompt = f"EVAL|ouvert|{json.dumps(expected, ensure_ascii=False)}|{student_answer}"
     else:
         prompt = f"EVAL|libre|{expected}|{student_answer}"
-    response = chat_session.send_message(prompt)
-    data = parse_json_response(response.text)
-    return data if data else {"correct": False, "feedback": "Je n'ai pas pu évaluer ta réponse, réessaie ! 🤔"}
+    
+    try:
+        response = chat_session.send_message(prompt)
+        data = parse_json_response(response.text)
+        return data if data else {"correct": False, "feedback": "Je n'ai pas pu évaluer ta réponse, réessaie ! 🤔"}
+    except Exception as e:
+        return {"correct": False, "feedback": f"Petit bug technique, réessaie ! ({e})"}
 
 def init_question(data: dict):
     st.session_state.current_question    = data
@@ -300,12 +314,10 @@ def handle_wrong(mode: str):
     st.session_state.last_answer_correct = False
     if mode == "exercice":
         st.session_state.vies -= 1
-        # La partie Game Over est gérée au moment du clic sur Suivant pour laisser lire l'explication
 
 def next_question_button(chat_session, matiere: str, sujet: str, mode: str, default_label: str = "➡️ Question suivante"):
     st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
     
-    # Changement du bouton si le joueur n'a plus de vies
     btn_label = "💀 Voir mon score final" if (mode == "exercice" and st.session_state.vies <= 0) else default_label
     
     if st.button(btn_label, use_container_width=True, key="next_q_btn"):
@@ -487,9 +499,23 @@ else:
             st.session_state.score           = 0
             st.session_state.total_questions = 0
             st.session_state.difficulty      = "facile"
-            with st.spinner("On repart ! 🚀"):
-                data, raw = generate_next(chat, matiere, sujet, "facile", False)
-                if data: init_question(data)
+            with st.spinner("On repart avec de nouveaux exercices ! 🚀"):
+                try:
+                    prompt_restart = (
+                        f"L'élève a perdu ses vies et recommence l'entraînement sur le sujet : {sujet}. "
+                        f"Génère une nouvelle question de niveau {DIFFICULTY_LABELS['facile']}. "
+                        "IMPORTANT : C'est un nouvel essai, invente un problème TOTALEMENT INÉDIT "
+                        "(nouveau contexte, nouveaux chiffres, nouvel angle) que tu n'as pas encore "
+                        "utilisé dans cette séance. Ne fais aucune phrase d'intro, format JSON uniquement."
+                    )
+                    response = chat.send_message(prompt_restart)
+                    data = parse_json_response(response.text)
+                    if data: 
+                        init_question(data)
+                    else:
+                        st.session_state.messages.append({"role": "assistant", "content": response.text})
+                except Exception as e:
+                    st.error(f"❌ Erreur lors du redémarrage : {e}")
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
