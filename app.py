@@ -7,14 +7,14 @@ import google.generativeai as genai
 from PIL import Image
 import re
 
-from src.config import MATIERES, DIFFICULTY_LABELS, _DEFAULTS, apply_styles
-from src.utils import generer_pdf
-from src.engine import (
+from .config import MATIERES, DIFFICULTY_LABELS, _DEFAULTS, apply_styles
+from .utils import generer_pdf
+from .engine import (
     reset_seance, get_ui_type, creer_chat, parse_json_response, 
     generate_next, evaluate_answer, init_question, 
     handle_correct, handle_wrong, analyser_photo
 )
-from src.components import next_question_button
+from .components import next_question_button
 
 # ==========================================
 # CONFIG PAGE & API
