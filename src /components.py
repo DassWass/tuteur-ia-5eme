@@ -1,5 +1,5 @@
 import streamlit as st
-from src.engine import generate_next, init_question
+from .engine import generate_next, init_question
 
 def next_question_button(chat_session, matiere: str, sujet: str, mode: str, default_label: str = "➡️ Question suivante"):
     st.markdown('<div class="launch-btn">', unsafe_allow_html=True)
