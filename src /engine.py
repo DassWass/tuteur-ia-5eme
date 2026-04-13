@@ -5,10 +5,11 @@ import re
 import random
 from PIL import Image
 
-from .config import _DEFAULTS, DIFFICULTY_ORDER, DIFFICULTY_LABELS
+from .config import _DEFAULTS, DIFFICULTY_ORDER, DIFFICULTY_LABELS  # ✅ MODEL_NAME et GENERATION_CONFIG retirés
 from .prompts import SYSTEM_COURS, SYSTEM_EXERCICE
 
-MODEL_NAME        = "gemini-2.5-flash-preview-05-20"
+# ✅ Définis ici, pas dans config.py
+MODEL_NAME = "gemini-2.5-flash-preview-05-20"
 
 GENERATION_CONFIG = genai.GenerationConfig(
     temperature=0.3,
@@ -59,7 +60,7 @@ def generate_next(chat_session, matiere: str, sujet: str, difficulty: str, is_fi
             "CONTRAINTE MAJEURE : Change l'angle d'approche, le contexte de l'énoncé, ou les valeurs numériques. "
             "L'exercice doit être STRICTEMENT DIFFÉRENT de tous ceux que tu as déjà posés."
         )
-    
+
     try:
         response = chat_session.send_message(prompt)
         return parse_json_response(response.text), response.text
@@ -71,7 +72,7 @@ def evaluate_answer(chat_session, fmt: str, expected, student_answer: str) -> di
         prompt = f"EVAL|ouvert|{json.dumps(expected, ensure_ascii=False)}|{student_answer}"
     else:
         prompt = f"EVAL|libre|{expected}|{student_answer}"
-    
+
     try:
         response = chat_session.send_message(prompt)
         data = parse_json_response(response.text)
@@ -93,16 +94,16 @@ def init_question(data: dict):
         st.session_state.paires_shuffled = rights
 
 def handle_correct(mode: str):
-    st.session_state.score           += 1
-    st.session_state.total_questions += 1
-    st.session_state.answered         = True
-    st.session_state.last_answer_correct = True
-    st.session_state.difficulty       = advance_difficulty(st.session_state.difficulty)
+    st.session_state.score               += 1
+    st.session_state.total_questions     += 1
+    st.session_state.answered             = True
+    st.session_state.last_answer_correct  = True
+    st.session_state.difficulty           = advance_difficulty(st.session_state.difficulty)
 
 def handle_wrong(mode: str):
-    st.session_state.total_questions += 1
-    st.session_state.answered         = True
-    st.session_state.last_answer_correct = False
+    st.session_state.total_questions     += 1
+    st.session_state.answered             = True
+    st.session_state.last_answer_correct  = False
     if mode == "exercice":
         st.session_state.vies -= 1
 
