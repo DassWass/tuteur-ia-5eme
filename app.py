@@ -7,13 +7,13 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-from config import (
+from src.config import (
     APP_CSS,
     DIFFICULTY_LABELS,
     MATIERES,
     SESSION_DEFAULTS,
 )
-from engine import (
+from src.engine import (
     creer_chat,
     generate_next,
     generate_restart,
