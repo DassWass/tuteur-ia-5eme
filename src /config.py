@@ -1,5 +1,4 @@
 import streamlit as st
-import google.generativeai as genai
 
 # ==========================================
 # CONSTANTES & CONFIGURATION IA
@@ -21,13 +20,6 @@ DIFFICULTY_LABELS = {
     "moyen":     "🟡 Moyen",
     "difficile": "🔴 Difficile",
 }
-
-MODEL_NAME        = "gemini-2.5-flash-lite"
-
-GENERATION_CONFIG = genai.GenerationConfig(
-    temperature=0.3,
-    response_mime_type="application/json"
-)
 
 QUICK_REPLIES = [
     ("💡 Indice",       "Peux-tu me donner un indice sans me donner la réponse ?"),
