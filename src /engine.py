@@ -5,8 +5,8 @@ import re
 import random
 from PIL import Image
 
-from src.config import _DEFAULTS, MODEL_NAME, GENERATION_CONFIG, DIFFICULTY_ORDER, DIFFICULTY_LABELS
-from src.prompts import SYSTEM_COURS, SYSTEM_EXERCICE
+from .config import _DEFAULTS, MODEL_NAME, GENERATION_CONFIG, DIFFICULTY_ORDER, DIFFICULTY_LABELS
+from .prompts import SYSTEM_COURS, SYSTEM_EXERCICE
 
 MODEL_NAME        = "gemini-2.5-flash-preview-05-20"
 
