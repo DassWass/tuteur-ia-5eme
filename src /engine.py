@@ -10,8 +10,8 @@ import google.generativeai as genai
 from fpdf import FPDF
 from PIL import Image
 
-from config import MODEL_NAME, DIFFICULTY_ORDER, DIFFICULTY_LABELS
-from prompts import (
+from core.config import MODEL_NAME, DIFFICULTY_ORDER, DIFFICULTY_LABELS
+from core.prompts import (
     build_system_prompt,
     build_first_prompt,
     build_next_prompt,
