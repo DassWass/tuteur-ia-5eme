@@ -1,6 +1,11 @@
 # ==========================================
 # app.py — Interface Streamlit (cœur de l'app)
 # ==========================================
+import sys
+import os
+
+# 1. On force l'ajout du dossier racine au chemin de Python
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import re
 import streamlit as st
