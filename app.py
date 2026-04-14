@@ -19,15 +19,37 @@ st.set_page_config(
 )
 
 # ==========================================
-# VÉRIFICATION CLÉ API
+# GESTION DES CLÉS API (FALLBACK)
 # ==========================================
-# Simulation de secrets pour l'exemple
-if "GEMINI_API_KEY" not in st.secrets:
-    st.error("⚠️ Clé API Gemini manquante dans les Secrets Streamlit.")
+if "GEMINI_API_KEYS" not in st.secrets:
+    st.error("⚠️ Liste de clés API manquante dans les Secrets Streamlit.")
     st.stop()
 
-# Configuration simulée
-genai.configure(api_key="SIMULATED_KEY")
+# On stocke l'index de la clé actuellement fonctionnelle dans la session
+if "current_api_index" not in st.session_state:
+    st.session_state.current_api_index = 0
+
+def get_working_api_key():
+    keys = st.secrets["GEMINI_API_KEYS"]
+    if st.session_state.current_api_index >= len(keys):
+        st.error("🚨 Toutes les clés API sont épuisées (Quota atteint).")
+        st.stop()
+    return keys[st.session_state.current_api_index]
+
+# Configuration initiale
+genai.configure(api_key=get_working_api_key())
+
+def switch_to_next_key() -> bool:
+    """Passe à la clé de secours et reconfigure l'API. Retourne False si plus de clés."""
+    st.session_state.current_api_index += 1
+    keys = st.secrets["GEMINI_API_KEYS"]
+    
+    if st.session_state.current_api_index < len(keys):
+        nouvelle_cle = keys[st.session_state.current_api_index]
+        genai.configure(api_key=nouvelle_cle)
+        return True
+    return False
+
 
 # ==========================================
 # CONSTANTES & CONFIGURATION IA
@@ -295,19 +317,34 @@ def parse_json_response(text: str) -> dict | None:
         except Exception:
             return None
 
-# Optimisation de la fonction generate_next pour réduire les tokens
 def generate_next(chat_session, matiere: str, sujet: str, difficulty: str, is_first: bool) -> tuple:
-    # Prompts plus concis pour économiser des tokens
     if is_first:
         prompt = f"Génère une question {difficulty} sur {sujet}. Format JSON uniquement."
     else:
         prompt = f"Nouvelle question {difficulty}. Différente des précédentes. JSON uniquement."
     
-    try:
-        response = chat_session.send_message(prompt)
-        return parse_json_response(response.text), response.text
-    except Exception as e:
-        return None, f"❌ Erreur: {e}"
+    # Nombre maximum d'essais = nombre de clés disponibles
+    max_retries = len(st.secrets["GEMINI_API_KEYS"])
+    
+    for _ in range(max_retries):
+        try:
+            response = chat_session.send_message(prompt)
+            return parse_json_response(response.text), response.text
+            
+        except Exception as e:
+            erreur_str = str(e).lower()
+            # On vérifie si c'est une erreur liée au quota (429, ResourceExhausted, etc.)
+            if "429" in erreur_str or "quota" in erreur_str or "exhausted" in erreur_str:
+                st.toast("⚠️ Quota API atteint, bascule sur la clé de secours...", icon="🔄")
+                if switch_to_next_key():
+                    continue # On boucle et on retente immédiatement l'appel
+                else:
+                    return None, "❌ Erreur: Toutes les clés API de secours sont épuisées."
+            else:
+                # Si c'est une autre erreur (ex: connexion internet), on arrête
+                return None, f"❌ Erreur inattendue: {e}"
+                
+    return None, "❌ Échec de la génération après plusieurs tentatives."
 
 # Optimisation de l'évaluation des réponses
 def evaluate_answer(chat_session, fmt: str, expected, student_answer: str) -> dict:
