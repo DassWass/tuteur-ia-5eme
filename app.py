@@ -3,7 +3,7 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 from fpdf import FPDF
-import json
+import json 
 import re
 import random
 import time
@@ -70,7 +70,7 @@ DIFFICULTY_LABELS = {
     "moyen":     "🟡 Moyen",
     "difficile": "🔴 Difficile",
 }
-MODEL_NAME = "gemini-2.5-flash-lite"
+MODEL_NAME = "gemini-2.0-flash"
 # Optimisation : Température basse (0.3) et forçage du JSON natif
 GENERATION_CONFIG = {
     "temperature": 0.3,
