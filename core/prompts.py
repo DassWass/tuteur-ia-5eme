@@ -1,5 +1,5 @@
 # ==========================================
-# prompts.py — System Prompts Gemini
+# core/prompts.py — System Prompts Gemini
 # ==========================================
 
 # ── Base commune ──────────────────────────────────────────────────────────────
@@ -71,6 +71,8 @@ Pour évaluer un exercice ouvert : EVAL|ouvert|<criteria_json>|<réponse_élève
 Réponds UNIQUEMENT avec : {"correct":true,"feedback":"Message encourageant 2-3 phrases avec emoji"}
 """
 
+
+# ── Builders ──────────────────────────────────────────────────────────────────
 
 def build_system_prompt(ui_type: str, matiere: str, sujet: str) -> str:
     """Assemble le system prompt final selon le mode choisi."""
