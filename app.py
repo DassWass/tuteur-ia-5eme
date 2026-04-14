@@ -604,4 +604,4 @@ else:
                 st.markdown("### 📝 Problème")
                 st.info(q.get("problem", q.get("prompt", "")))
                 
-                if q.get("hint") and not st.session_state.hint_revealed
+                if q.get("hint") and not st.session_state.hint_revealed :
