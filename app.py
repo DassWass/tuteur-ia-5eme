@@ -604,4 +604,56 @@ else:
                 st.markdown("### 📝 Problème")
                 st.info(q.get("problem", q.get("prompt", "")))
                 
-                if q.get("hint") and not st.session_state.hint_revealed :
+                if q.get("hint") and not st.session_state.hint_revealed:
+                    if st.button("💡 Voir un indice"):
+                        st.session_state.hint_revealed = True
+                        st.rerun()
+                elif st.session_state.hint_revealed:
+                    st.warning(f"💡 Indice : {q.get('hint','')}")
+                
+                if not answered:
+                    with st.form(key="libre_form"):
+                        student_answer = st.text_area("Ta réponse :")
+                        if st.form_submit_button("✅ Valider ma réponse"):
+                            if student_answer.strip():
+                                show_loading("Vérification en cours... 🔍")
+                                exp = q.get("solution") if fmt == "libre" else q.get("criteria")
+                                res = evaluate_answer(chat, fmt, exp, student_answer)
+                                st.session_state.eval_result = res
+                                if res.get("correct"): handle_correct(mode)
+                                else: handle_wrong(mode)
+                                st.rerun()
+                else:
+                    res = st.session_state.eval_result or {}
+                    if res.get("correct"):
+                        st.success(f"✅ {res.get('feedback','')}")
+                    else:
+                        st.error(f"❌ {res.get('feedback','')}\n\nAttendu : **{q.get('solution','')}**\n*{q.get('explanation','')}*")
+                    
+                    with st.form(key="libre_next_form"):
+                        btn_label = "💀 Voir mon score final" if (mode == "exercice" and st.session_state.vies <= 0) else "➡️ Question suivante"
+                        if st.form_submit_button(btn_label, use_container_width=True):
+                            if mode == "exercice" and st.session_state.vies <= 0:
+                                st.session_state.game_over = True
+                                st.rerun()
+                            
+                            show_loading("Préparation de la prochaine question... ⚡")
+                            data, raw = generate_next(chat, matiere, sujet, st.session_state.difficulty, False)
+                            if data: init_question(data)
+                            st.rerun()
+            
+            st.markdown('</div>', unsafe_allow_html=True)
+    
+    # ---- EXPORT PDF ----
+    st.markdown("---")
+    with st.expander("📥 Exporter ma séance en PDF"):
+        with st.form(key="pdf_form"):
+            include_full = st.checkbox("Inclure toutes les questions", value=False, help="Décochez pour n'inclure que les 5 dernières questions (PDF plus léger)")
+            if st.form_submit_button("📄 Générer le fichier"):
+                try:
+                    messages_to_include = st.session_state.messages if include_full else st.session_state.messages[-5:]
+                    show_loading("Génération du PDF en cours... 📝")
+                    pdf_bytes = generer_pdf(matiere, sujet, mode, messages_to_include)
+                    st.download_button("⬇️ Télécharger", pdf_bytes, file_name="seance.pdf", mime="application/pdf")
+                except Exception as e:
+                    st.error(f"❌ Erreur PDF : {e}")
