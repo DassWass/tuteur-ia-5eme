@@ -69,7 +69,7 @@ DIFFICULTY_LABELS = {
 }
 
 # Modèle recommandé : gemini-1.5-flash ou gemini-2.5-flash
-MODEL_NAME = "gemini-1.5-flash" 
+MODEL_NAME = "gemini-2.0-flash" 
 
 GENERATION_CONFIG = {
     "temperature": 0.3,
