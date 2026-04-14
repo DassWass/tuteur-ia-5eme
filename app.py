@@ -236,7 +236,7 @@ def advance_difficulty(current: str) -> str:
 # GEMINI HELPERS (AVEC MISE EN CACHE)
 # ==========================================
 # Ajout de mise en cache pour améliorer la performance
-@st.cache_data(ttl=3600)
+@st.cache_resource(ttl=3600)
 def make_model(system_prompt: str):
     # Simulation du modèle pour l'exemple
     class MockModel:
