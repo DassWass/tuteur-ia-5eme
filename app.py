@@ -413,61 +413,60 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# ÉCRAN SETUP - AVEC FORMULAIRE STREAMLIT
+# ÉCRAN SETUP - CORRIGÉ (SANS st.form)
 # ==========================================
 if not st.session_state.seance_lancee:
-    # Utilisation d'un formulaire pour regrouper toutes les entrées
-    with st.form(key="setup_form"):
-        st.markdown('<p class="section-title">1️⃣ Choisis ta matière</p>', unsafe_allow_html=True)
-        cols = st.columns(4)
-        for i, (mat, emoji) in enumerate(MATIERES.items()):
-            is_sel = st.session_state.matiere_temp == mat
-            css    = "mat-btn-selected" if is_sel else "mat-btn"
-            label  = f"{'✅ ' if is_sel else ''}{emoji}\n{mat}"
-            with cols[i % 4]:
-                st.markdown(f'<div class="{css}">', unsafe_allow_html=True)
-                if st.button(label, key=f"mat_{mat}", use_container_width=True):
-                    st.session_state.matiere_temp = mat
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
-        
-        matiere_choisie = st.session_state.matiere_temp
-        if matiere_choisie == "Autre":
-            matiere_choisie = st.text_input("Précise ta matière :")
-        
-        st.markdown("---")
-        st.markdown('<p class="section-title">2️⃣ Qu\'est-ce que tu veux faire ?</p>', unsafe_allow_html=True)
-        
-        mode_cols = st.columns(2)
-        modes = {
-            "cours":    ("📚", "Comprendre le cours",  "QCM, vrai/faux, trous, paires"),
-            "exercice": ("✏️", "Faire des exercices",   "Problèmes, schémas, remise en ordre"),
-        }
-        
-        for i, (mode_key, (emoji, titre, desc)) in enumerate(modes.items()):
-            is_sel = st.session_state.mode_temp == mode_key
-            css    = "mode-btn-selected" if is_sel else "mode-btn"
-            label  = f"{'✅ ' if is_sel else ''}{emoji} {titre}\n{desc}"
-            with mode_cols[i]:
-                st.markdown(f'<div class="{css}">', unsafe_allow_html=True)
-                if st.button(label, key=f"mode_{mode_key}", use_container_width=True):
-                    st.session_state.mode_temp = mode_key
-                    st.rerun()
-                st.markdown("</div>", unsafe_allow_html=True)
-        
-        st.markdown("---")
-        sujet = st.text_input("3️⃣ Sur quel sujet veux-tu travailler ?", placeholder="Ex: Les fractions, L'eau...")
-        photo = st.file_uploader("4️⃣ Tu as un examen blanc ? (Optionnel)", type=["png","jpg","jpeg"])
-        
-        st.markdown("---")
-        submit_button = st.form_submit_button("🚀 Lancer ma séance !", use_container_width=True)
-        
-    # Traitement après soumission du formulaire
+    st.markdown('<p class="section-title">1️⃣ Choisis ta matière</p>', unsafe_allow_html=True)
+    cols = st.columns(4)
+    for i, (mat, emoji) in enumerate(MATIERES.items()):
+        is_sel = st.session_state.matiere_temp == mat
+        css    = "mat-btn-selected" if is_sel else "mat-btn"
+        label  = f"{'✅ ' if is_sel else ''}{emoji}\n{mat}"
+        with cols[i % 4]:
+            st.markdown(f'<div class="{css}">', unsafe_allow_html=True)
+            # st.button fonctionne ici car nous avons retiré le st.form()
+            if st.button(label, key=f"mat_{mat}", use_container_width=True):
+                st.session_state.matiere_temp = mat
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    matiere_choisie = st.session_state.matiere_temp
+    if matiere_choisie == "Autre":
+        matiere_choisie = st.text_input("Précise ta matière :")
+    
+    st.markdown("---")
+    st.markdown('<p class="section-title">2️⃣ Qu\'est-ce que tu veux faire ?</p>', unsafe_allow_html=True)
+    
+    mode_cols = st.columns(2)
+    modes = {
+        "cours":    ("📚", "Comprendre le cours",  "QCM, vrai/faux, trous, paires"),
+        "exercice": ("✏️", "Faire des exercices",   "Problèmes, schémas, remise en ordre"),
+    }
+    
+    for i, (mode_key, (emoji, titre, desc)) in enumerate(modes.items()):
+        is_sel = st.session_state.mode_temp == mode_key
+        css    = "mode-btn-selected" if is_sel else "mode-btn"
+        label  = f"{'✅ ' if is_sel else ''}{emoji} {titre}\n{desc}"
+        with mode_cols[i]:
+            st.markdown(f'<div class="{css}">', unsafe_allow_html=True)
+            if st.button(label, key=f"mode_{mode_key}", use_container_width=True):
+                st.session_state.mode_temp = mode_key
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+    
+    st.markdown("---")
+    sujet = st.text_input("3️⃣ Sur quel sujet veux-tu travailler ?", placeholder="Ex: Les fractions, L'eau...")
+    photo = st.file_uploader("4️⃣ Tu as un examen blanc ? (Optionnel)", type=["png","jpg","jpeg"])
+    
+    st.markdown("---")
+    # On utilise un st.button classique au lieu d'un form_submit_button
+    submit_button = st.button("🚀 Lancer ma séance !", use_container_width=True)
+    
+    # Traitement après clic sur le bouton
     if submit_button:
         if not matiere_choisie or not st.session_state.mode_temp or not sujet.strip():
             st.warning("⚠️ Remplis bien la matière, le mode et le sujet !")
         else:
-            # Utilisation du spinner Streamlit avec message personnalisé
             with st.spinner("Ton tuteur se prépare... 🎯"):
                 try:
                     ui_type = get_ui_type(matiere_choisie, st.session_state.mode_temp)
